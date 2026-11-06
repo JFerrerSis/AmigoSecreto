@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.log
+.taste-skill
+.vercel
+.data
+.clerk
+README.md
+Dockerfile
+docker-compose.yml
