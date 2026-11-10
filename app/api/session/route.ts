@@ -1,8 +1,7 @@
-import { randomUUID } from "node:crypto";
-
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { authenticateLocalUser } from "@/lib/db/users";
 import { LocalApiError } from "@/lib/local/errors";
 import { localErrorResponse } from "@/lib/local/responses";
 import {
@@ -10,8 +9,6 @@ import {
   getSessionUser,
   setSessionUser,
 } from "@/lib/local/session";
-import { mutateLocalDatabase } from "@/lib/local/store";
-import type { LocalUser } from "@/lib/types";
 
 const sessionSchema = z
   .object({
@@ -58,42 +55,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const { intent } = parsed.data;
-    const fullName = parsed.data.fullName?.trim();
-    const email = parsed.data.email.toLowerCase();
-
-    const result = await mutateLocalDatabase((database) => {
-      const existing = database.users.find(
-        (candidate) => candidate.email?.toLowerCase() === email,
-      );
-
-      if (intent === "login") {
-        if (!existing) {
-          throw new LocalApiError(
-            "No encontramos una identidad con ese correo. Crea una nueva.",
-            404,
-            "USER_NOT_FOUND",
-          );
-        }
-
-        return { user: existing, existing: true };
-      }
-
-      if (existing) {
-        if (fullName) existing.full_name = fullName;
-        return { user: existing, existing: true };
-      }
-
-      const created: LocalUser = {
-        id: `user_${randomUUID()}`,
-        full_name: fullName ?? "Invitado",
-        email,
-        avatar_url: null,
-        created_at: new Date().toISOString(),
-      };
-
-      database.users.push(created);
-      return { user: created, existing: false };
+    const result = await authenticateLocalUser({
+      intent: parsed.data.intent,
+      fullName: parsed.data.fullName?.trim(),
+      email: parsed.data.email.toLowerCase(),
     });
 
     await setSessionUser(result.user.id);

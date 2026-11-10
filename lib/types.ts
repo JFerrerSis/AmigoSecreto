@@ -70,12 +70,3 @@ export interface LocalUser {
   avatar_url: string | null;
   created_at: string;
 }
-
-export interface LocalDatabase {
-  version: 1;
-  users: LocalUser[];
-  groups: Group[];
-  group_members: GroupMember[];
-  exclusions: Exclusion[];
-  draw_results: DrawResult[];
-}

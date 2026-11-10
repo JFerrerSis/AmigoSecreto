@@ -18,11 +18,19 @@ interface SendDrawEmailsInput {
   recipients: DrawEmailRecipient[];
 }
 
+export interface DrawEmailDelivery {
+  email: string;
+  full_name: string;
+  status: "sent" | "failed";
+  error?: string;
+}
+
 export interface SendDrawEmailsResult {
   sent: number;
   failed: number;
   skipped: boolean;
   message?: string;
+  deliveries: DrawEmailDelivery[];
 }
 
 function escapeHtml(value: string) {
@@ -129,6 +137,7 @@ export async function sendDrawEmails(
       skipped: true,
       message:
         "El sorteo se completó, pero Resend no está configurado. No se enviaron correos.",
+      deliveries: [],
     };
   }
 
@@ -148,33 +157,63 @@ export async function sendDrawEmails(
       failed: 0,
       skipped: true,
       message: "No hay correos de participantes para notificar.",
+      deliveries: [],
     };
   }
 
   const resend = new Resend(apiKey);
+  const deliveries: DrawEmailDelivery[] = [];
   let sent = 0;
   let failed = 0;
 
   for (let index = 0; index < recipients.length; index += 10) {
     const batch = recipients.slice(index, index + 10);
 
-    await Promise.allSettled(
-      batch.map(async (recipient) => {
-        const { error } = await resend.emails.send({
-          from,
-          to: recipient.email!.trim(),
-          subject: `El sorteo de ${input.groupName} ya está listo`,
-          html: buildHtml({ ...input, recipientName: recipient.full_name }),
-          text: `Hola, ${recipient.full_name}. El amigo secreto de ${input.groupName} ya está listo. Presupuesto: ${budgetLabel(input.minBudget, input.maxBudget, input.currency)}. Consulta tu asignación aquí: ${input.groupUrl}`,
-        });
+    const results = await Promise.all(
+      batch.map(async (recipient): Promise<DrawEmailDelivery> => {
+        const email = recipient.email!.trim();
 
-        if (error) {
-          failed += 1;
-        } else {
+        try {
+          const { error } = await resend.emails.send({
+            from,
+            to: email,
+            subject: `El sorteo de ${input.groupName} ya está listo`,
+            html: buildHtml({ ...input, recipientName: recipient.full_name }),
+            text: `Hola, ${recipient.full_name}. El amigo secreto de ${input.groupName} ya está listo. Presupuesto: ${budgetLabel(input.minBudget, input.maxBudget, input.currency)}. Consulta tu asignación aquí: ${input.groupUrl}`,
+          });
+
+          if (error) {
+            failed += 1;
+            return {
+              email,
+              full_name: recipient.full_name,
+              status: "failed",
+              error: error.message,
+            };
+          }
+
           sent += 1;
+          return {
+            email,
+            full_name: recipient.full_name,
+            status: "sent",
+          };
+        } catch (sendError) {
+          failed += 1;
+          return {
+            email,
+            full_name: recipient.full_name,
+            status: "failed",
+            error:
+              sendError instanceof Error
+                ? sendError.message
+                : "Error desconocido al enviar el correo.",
+          };
         }
       }),
     );
+
+    deliveries.push(...results);
   }
 
   return {
@@ -185,5 +224,6 @@ export async function sendDrawEmails(
       failed > 0
         ? `Se enviaron ${sent} correos y ${failed} fallaron.`
         : undefined,
+    deliveries,
   };
 }

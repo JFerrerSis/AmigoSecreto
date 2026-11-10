@@ -2,7 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
-import { readLocalDatabase } from "@/lib/local/store";
+import { getUserById } from "@/lib/db/users";
 import type { LocalUser } from "@/lib/types";
 
 export const SESSION_COOKIE = "amigo_secreto_user";
@@ -14,10 +14,7 @@ export async function getSessionUser(): Promise<LocalUser | null> {
 
   if (!userId) return null;
 
-  return readLocalDatabase(
-    (database) =>
-      database.users.find((user) => user.id === userId) ?? null,
-  );
+  return getUserById(userId);
 }
 
 export async function setSessionUser(userId: string) {
