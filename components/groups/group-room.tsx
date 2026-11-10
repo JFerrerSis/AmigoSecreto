@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { Avatar } from "@/components/ui/avatar";
+import { DeleteRoomPanel } from "@/components/groups/delete-room-panel";
 import { DrawPanel } from "@/components/groups/draw-panel";
 import { ExclusionsManager } from "@/components/groups/exclusions-manager";
 import { ParticipantList } from "@/components/groups/participant-list";
@@ -485,6 +486,10 @@ export function GroupRoom({ groupId }: { groupId: string }) {
               </div>
             </div>
           </Card>
+
+          {isCreator ? (
+            <DeleteRoomPanel group={group} userId={userId} />
+          ) : null}
         </aside>
       </div>
     </div>

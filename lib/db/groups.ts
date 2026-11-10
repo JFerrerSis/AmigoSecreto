@@ -129,6 +129,40 @@ export async function createGroupWithOwner(
   );
 }
 
+export async function deleteGroup(
+  groupId: string,
+  userId: string,
+): Promise<void> {
+  if (!isUuid(groupId) || !isUuid(userId)) {
+    throw new LocalApiError("Esta sala no existe.", 404);
+  }
+
+  await withTransaction(async (client) => {
+    const result = await client.query<{ creator_id: string }>(
+      `select creator_id
+         from public.groups
+        where id = $1
+          for update`,
+      [groupId],
+    );
+
+    const group = result.rows[0];
+
+    if (!group) {
+      throw new LocalApiError("Esta sala no existe.", 404);
+    }
+
+    if (group.creator_id !== userId) {
+      throw new LocalApiError(
+        "Solo el organizador puede eliminar esta sala.",
+        403,
+      );
+    }
+
+    await client.query(`delete from public.groups where id = $1`, [groupId]);
+  });
+}
+
 export async function getGroupDataForUser(
   groupId: string,
   userId: string,
