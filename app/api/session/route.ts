@@ -9,6 +9,8 @@ import {
   getSessionUser,
   setSessionUser,
 } from "@/lib/local/session";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { assertSameOrigin } from "@/lib/security/request";
 
 const sessionSchema = z
   .object({
@@ -17,13 +19,19 @@ const sessionSchema = z
       .string()
       .trim()
       .max(80, "El nombre es demasiado largo.")
+      .regex(
+        /^[^\u0000-\u001F\u007F]*$/,
+        "El nombre contiene caracteres no válidos.",
+      )
       .optional(),
     email: z
       .string()
       .trim()
       .email("Escribe un correo válido.")
       .max(160, "El correo es demasiado largo."),
+    website: z.string().max(0).optional(),
   })
+  .strict()
   .superRefine((data, context) => {
     if (data.intent === "create" && (!data.fullName || data.fullName.length < 2)) {
       context.addIssue({
@@ -34,8 +42,14 @@ const sessionSchema = z
     }
   });
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    enforceRateLimit(request, {
+      scope: "session-read",
+      limit: 120,
+      windowMs: 60_000,
+    });
+
     const user = await getSessionUser();
     return NextResponse.json({ user });
   } catch (error) {
@@ -45,6 +59,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    assertSameOrigin(request);
+    enforceRateLimit(request, {
+      scope: "session",
+      limit: 20,
+      windowMs: 10 * 60_000,
+    });
+
     const body = await request.json().catch(() => null);
     const parsed = sessionSchema.safeParse(body);
 
@@ -54,6 +75,13 @@ export async function POST(request: Request) {
         422,
       );
     }
+
+    enforceRateLimit(request, {
+      scope: "session-email",
+      limit: 10,
+      windowMs: 10 * 60_000,
+      key: parsed.data.email.toLowerCase(),
+    });
 
     const result = await authenticateLocalUser({
       intent: parsed.data.intent,
@@ -69,8 +97,15 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
+    assertSameOrigin(request);
+    enforceRateLimit(request, {
+      scope: "session-delete",
+      limit: 30,
+      windowMs: 10 * 60_000,
+    });
+
     await clearSessionUser();
     return NextResponse.json({ ok: true });
   } catch (error) {

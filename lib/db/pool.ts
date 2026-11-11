@@ -50,15 +50,22 @@ export function getPool(): Pool {
   }
 
   if (!globalDatabase.amigoSecretoPool) {
+    const ca = process.env.DATABASE_SSL_CA?.replace(/\\n/g, "\n");
+    const ssl =
+      process.env.DATABASE_SSL === "false"
+        ? false
+        : {
+            rejectUnauthorized:
+              process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true",
+            ...(ca ? { ca } : {}),
+          };
+
     globalDatabase.amigoSecretoPool = new Pool({
       connectionString: url,
       max: 1,
       idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: 10_000,
-      ssl:
-        process.env.DATABASE_SSL === "false"
-          ? false
-          : { rejectUnauthorized: false },
+      ssl,
       application_name: "amigo-secreto",
     });
   }

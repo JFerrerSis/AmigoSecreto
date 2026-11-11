@@ -50,8 +50,15 @@ if (migrationFiles.length === 0) {
   process.exit(1);
 }
 
+const ca = process.env.DATABASE_SSL_CA?.replace(/\\n/g, "\n");
 const ssl =
-  process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false };
+  process.env.DATABASE_SSL === "false"
+    ? false
+    : {
+        rejectUnauthorized:
+          process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true",
+        ...(ca ? { ca } : {}),
+      };
 
 async function connect(candidate) {
   const client = new Client({

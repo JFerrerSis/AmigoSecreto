@@ -201,6 +201,13 @@ export async function getGroupDataForUser(
     );
   }
 
+  const canSeeEmails = group.creator_id === userId;
+  const members = membersResult.rows.map((member) =>
+    canSeeEmails || member.user_id === userId
+      ? member
+      : { ...member, email: null },
+  );
+
   const exclusionsResult = await query<Exclusion>(
     `select ${EXCLUSION_COLUMNS}
        from public.exclusions
@@ -225,7 +232,7 @@ export async function getGroupDataForUser(
 
   return {
     group,
-    members: membersResult.rows,
+    members,
     exclusions: exclusionsResult.rows,
     drawResult,
   };

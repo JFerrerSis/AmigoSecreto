@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
 
 import { pingDatabase } from "@/lib/db/pool";
+import { localErrorResponse } from "@/lib/local/responses";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { getSupabaseServerConfig } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  try {
+    enforceRateLimit(request, {
+      scope: "health",
+      limit: 60,
+      windowMs: 60_000,
+    });
+  } catch (error) {
+    return localErrorResponse(error);
+  }
+
   let database: "ok" | "error" = "ok";
   let databaseErrorCode: string | null = null;
 
@@ -29,16 +41,27 @@ export async function GET() {
       process.env.DIRECT_URL?.trim(),
   );
 
-  return NextResponse.json({
+  const healthToken = process.env.HEALTH_CHECK_TOKEN?.trim();
+  const includeDetails =
+    process.env.NODE_ENV !== "production" ||
+    Boolean(healthToken && request.headers.get("x-health-token") === healthToken);
+
+  const payload = {
     status: database === "ok" ? "ok" : "degraded",
     service: "amigo-secreto",
-    database,
-    databaseConfigured,
-    databaseErrorCode,
-    supabase: {
-      urlConfigured: Boolean(supabase?.url),
-      serviceRoleConfigured: Boolean(supabase?.serviceRoleKey),
-    },
     timestamp: new Date().toISOString(),
-  });
+    ...(includeDetails
+      ? {
+          database,
+          databaseConfigured,
+          databaseErrorCode,
+          supabase: {
+            urlConfigured: Boolean(supabase?.url),
+            serviceRoleConfigured: Boolean(supabase?.serviceRoleKey),
+          },
+        }
+      : {}),
+  };
+
+  return NextResponse.json(payload);
 }

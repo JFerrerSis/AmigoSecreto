@@ -33,6 +33,9 @@ export function LocalAuthForm({
     const nextErrors: Record<string, string> = {};
     const cleanName = fullName.trim();
     const cleanEmail = email.trim();
+    const website = String(
+      new FormData(event.currentTarget).get("website") ?? "",
+    );
 
     if (isSignUp && cleanName.length < 2) {
       nextErrors.fullName = "Escribe tu nombre.";
@@ -52,6 +55,7 @@ export function LocalAuthForm({
         intent: isSignUp ? "create" : "login",
         fullName: isSignUp ? cleanName : undefined,
         email: cleanEmail,
+        website,
       });
       toast({
         title: isSignUp ? "Identidad creada" : "Bienvenido de vuelta",
@@ -77,15 +81,15 @@ export function LocalAuthForm({
       <div className="mb-8 text-center">
         <span className="inline-flex items-center gap-2 rounded-full border border-pine/15 bg-pine/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-pine">
           <HardDrive className="size-3" aria-hidden />
-          Modo local · sin Clerk ni Supabase
+          Identidad local · sesión firmada
         </span>
         <h1 className="mt-4 font-display text-4xl leading-tight text-ink">
           {isSignUp ? "Crea tu identidad local" : "Entra a tus salas"}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
           {isSignUp
-            ? "No hay contraseñas. Tu nombre y correo se guardan únicamente en este servidor local para identificar tus salas y resultados."
-            : "Escribe el correo con el que creaste tu identidad local. Si ya existe, entras directo sin volver a escribir tu nombre."}
+            ? "Tu nombre y correo se guardan en la base de datos privada del proyecto para identificar tus salas y resultados. No compartimos tus datos con terceros."
+            : "Escribe el correo con el que creaste tu identidad. Si ya existe, entras directo sin volver a escribir tu nombre."}
         </p>
       </div>
 
@@ -93,6 +97,15 @@ export function LocalAuthForm({
         onSubmit={handleSubmit}
         className="rounded-3xl border border-line bg-paper p-6 shadow-soft sm:p-7"
       >
+        <input
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          className="hidden"
+        />
+
         <div className="space-y-5">
           {isSignUp ? (
             <Field
@@ -121,7 +134,7 @@ export function LocalAuthForm({
             label="Correo"
             hint={
               isSignUp
-                ? "Lo usaremos para recuperar tu identidad en este servidor local."
+                ? "Lo usaremos para identificar tu identidad en este proyecto."
                 : "Si ya creaste tu identidad, este correo te hace entrar directo."
             }
             error={errors.email}
@@ -170,8 +183,9 @@ export function LocalAuthForm({
             aria-hidden
           />
           <p className="text-[11px] leading-relaxed text-muted">
-            Todo queda en la base local del proyecto (<code>.data/db.json</code>
-            ). No se envía nada a servicios externos.
+            La sesión usa una cookie httpOnly firmada. Tus datos se guardan en
+            la base de datos privada del proyecto y no se comparten con
+            terceros.
           </p>
         </div>
       </form>

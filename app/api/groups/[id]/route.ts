@@ -3,12 +3,20 @@ import { NextResponse } from "next/server";
 import { deleteGroup, getGroupDataForUser } from "@/lib/db/groups";
 import { localErrorResponse, requireUser } from "@/lib/local/responses";
 import { getSessionUser } from "@/lib/local/session";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { assertSameOrigin } from "@/lib/security/request";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    enforceRateLimit(request, {
+      scope: "group-read",
+      limit: 120,
+      windowMs: 60_000,
+    });
+
     const user = requireUser(await getSessionUser());
     const { id } = await params;
 
@@ -21,10 +29,17 @@ export async function GET(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    assertSameOrigin(request);
+    enforceRateLimit(request, {
+      scope: "group-delete",
+      limit: 20,
+      windowMs: 60 * 60_000,
+    });
+
     const user = requireUser(await getSessionUser());
     const { id } = await params;
 

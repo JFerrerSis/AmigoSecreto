@@ -129,6 +129,10 @@ export function CreateGroupForm() {
       return;
     }
 
+    const website = String(
+      new FormData(event.currentTarget).get("website") ?? "",
+    );
+
     setSubmitting(true);
 
     try {
@@ -143,6 +147,7 @@ export function CreateGroupForm() {
           maxParticipants,
           drawAt: drawDate.toISOString(),
           sendEmails: form.sendEmails,
+          website,
         }),
       });
 
@@ -186,6 +191,15 @@ export function CreateGroupForm() {
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[1fr_360px]">
       <form onSubmit={handleSubmit} className="space-y-6">
+        <input
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          className="hidden"
+        />
+
         <section className="rounded-3xl border border-line bg-paper p-6 shadow-soft sm:p-8">
           <div className="flex items-center gap-3">
             <span className="flex size-10 items-center justify-center rounded-2xl bg-pine/10 text-pine">

@@ -10,7 +10,7 @@ Aplicación web para organizar intercambios de amigo secreto: salas privadas, in
 
 ```text
 Navegador
-   │  cookie httpOnly (UUID de identidad local)
+   │  cookie httpOnly firmada (UUID + HMAC)
    ▼
 API Routes de Next.js (servidor)
    │
@@ -23,7 +23,7 @@ API Routes de Next.js (servidor)
 ```
 
 - La identidad es local: nombre + correo, sin contraseña. Se guarda en `public.users`.
-- La sesión se guarda en la cookie `amigo_secreto_user` con el UUID del usuario.
+- La sesión se guarda en una cookie `httpOnly` firmada con HMAC-SHA256: `__Host-amigo_secreto_user` en producción y `amigo_secreto_user` en desarrollo.
 - Todo el CRUD pasa por las API routes del servidor. El navegador no escribe directamente en tablas privadas.
 - La capa de datos (`lib/db/*`) usa `pg` con la connection string de Supabase para operaciones transaccionales: crear sala, unirse, exclusiones y sorteo.
 - Los clientes oficiales de Supabase están configurados en:
@@ -82,8 +82,9 @@ El script ejecuta en orden:
 
 - `supabase/migrations/0001_init.sql`: tablas, índices, constraints, triggers, funciones y RLS.
 - `supabase/migrations/0002_import_app_state.sql`: importa datos legacy de `public.app_state` (idempotente).
+- `supabase/migrations/0003_security_hardening.sql`: bloquea cambios sobre campos inmutables de identidad, pertenencia, resultados y grupos completados.
 
-También puedes pegar ambos archivos en el **SQL Editor** de Supabase, en ese orden.
+También puedes pegar los tres archivos en el **SQL Editor** de Supabase, en ese orden.
 
 > `app_state` no se elimina. Consérvala como respaldo hasta validar la migración.
 
@@ -104,11 +105,24 @@ DATABASE_URL=postgresql://postgres.TU_REF:TU_PASSWORD@aws-0-TU_REGION.pooler.sup
 # Migraciones/scripts (conexión directa o Session Pooler)
 DIRECT_URL=postgresql://postgres:TU_PASSWORD@db.TU_REF.supabase.co:5432/postgres
 DATABASE_SSL=true
+DATABASE_SSL_REJECT_UNAUTHORIZED=false
 
 COOKIE_SECURE=false
 
+# Obligatorio en producción: mínimo 32 caracteres aleatorios.
+SESSION_SECRET=
+
+# Opcional: permite consultar detalles de /api/health con x-health-token.
+HEALTH_CHECK_TOKEN=
+
 RESEND_API_KEY=
 RESEND_FROM_EMAIL="Amigo Secreto <hola@tudominio.com>"
+```
+
+Genera `SESSION_SECRET` con `openssl rand -base64 48` o con PowerShell:
+
+```powershell
+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
 ```
 
 Opcional, solo si usas `supabase-js` en el servidor con bypass de RLS:
@@ -148,7 +162,10 @@ En **Project Settings → Environment Variables**, crea las variables para **Pro
 | `SUPABASE_ANON_KEY` | tu publishable/anon key |
 | `DATABASE_URL` | connection string del **Transaction Pooler** (puerto `6543`, `pgbouncer=true`) |
 | `DATABASE_SSL` | `true` |
+| `DATABASE_SSL_REJECT_UNAUTHORIZED` | `false` (el pooler usa cadena autofirmada); `true` si configuras `DATABASE_SSL_CA` |
 | `COOKIE_SECURE` | `true` |
+| `SESSION_SECRET` | obligatorio, mínimo 32 caracteres aleatorios |
+| `HEALTH_CHECK_TOKEN` | opcional, para ver detalles de `/api/health` con `x-health-token` |
 | `RESEND_API_KEY` | opcional |
 | `RESEND_FROM_EMAIL` | opcional, remitente verificado |
 | `SUPABASE_SERVICE_ROLE_KEY` | opcional, solo si usas `supabase-js` server-side con bypass de RLS |
@@ -168,18 +185,21 @@ Vercel no ejecuta migraciones automáticamente. Ejecuta una vez desde tu máquin
 bun run db:migrate
 ```
 
-O pega `0001_init.sql` y `0002_import_app_state.sql` en el SQL Editor de Supabase.
+O pega `0001_init.sql`, `0002_import_app_state.sql` y `0003_security_hardening.sql` en el SQL Editor de Supabase.
 
 ### 4. Verificar
 
 1. Abre `https://topsecretfriend.vercel.app/api/health`.
-2. Debe responder `"database":"ok"`.
+2. Debe responder `"status":"ok"`. Para ver el detalle de la base de datos, envía el header `x-health-token` con el valor de `HEALTH_CHECK_TOKEN`.
 3. Crea una identidad, una sala, invita a otra persona, ejecuta el sorteo y revisa que cada participante vea solo su resultado.
 
 ### 5. Consideraciones de producción
 
+- `SESSION_SECRET` es obligatorio en producción. Sin él, la app falla cerrada y no puede firmar sesiones.
 - `COOKIE_SECURE=true` exige HTTPS (Vercel ya lo provee).
 - El pool de `pg` usa `max: 1` para entornos serverless. El Transaction Pooler de Supabase maneja las conexiones.
+- `next.config.ts` aplica CSP, HSTS, `nosniff`, `DENY` para frames, `Permissions-Policy`, `no-store` en APIs y oculta `X-Powered-By`.
+- `middleware.ts` fuerza HTTPS, bloquea rutas sensibles y valida el origen de las mutaciones de API.
 - Configura `RESEND_FROM_EMAIL` con un dominio verificado en Resend si quieres enviar correos reales.
 - Si usas Supabase Auth en el futuro, las políticas RLS ya están definidas para `authenticated` y `auth.uid()`.
 
@@ -233,6 +253,7 @@ bun run start
 bun run typecheck
 bun run lint
 bun test
+bun audit
 bun run db:migrate
 bun run docker:up
 bun run docker:down
@@ -264,13 +285,17 @@ lib/
   db/email-deliveries.ts           Historial de correos
   supabase/client.ts               Cliente oficial para navegador (anon)
   supabase/server.ts               Cliente oficial de servidor (service role opcional)
-  local/session.ts                 Cookie de sesión
+  local/session.ts                 Cookie de sesión firmada
+  security/request.ts              IP de cliente y validación de origen
+  security/rate-limit.ts           Rate limit en memoria por IP/scope
   draw.ts                          Algoritmo de emparejamiento
   email.ts                         Resend
   validation.ts                    Esquemas Zod
+middleware.ts                      HTTPS, rutas bloqueadas y origen
 supabase/migrations/
   0001_init.sql                    Esquema, RLS, triggers y funciones
   0002_import_app_state.sql        Importación de datos legacy
+  0003_security_hardening.sql      Protección de campos inmutables
 scripts/db-migrate.mjs             Runner de migraciones
 ```
 
@@ -279,9 +304,15 @@ scripts/db-migrate.mjs             Runner de migraciones
 ## Seguridad y limitaciones
 
 - No hay contraseñas: la identidad local se basa en el correo. Es adecuada para grupos pequeños, no para autenticación sensible.
-- La cookie es `httpOnly` y `sameSite=lax`; activa `COOKIE_SECURE=true` con HTTPS.
-- La connection string de Postgres es un secreto de servidor y nunca debe llevar prefijo `NEXT_PUBLIC_`.
+- La cookie es `httpOnly`, `sameSite=lax`, `secure` en producción y está firmada con HMAC-SHA256. Si cambias `SESSION_SECRET`, todas las sesiones se invalidan.
+- La connection string de Postgres es un secreto de servidor y nunca debe llevar prefijo `NEXT_PUBLIC_`. No la subas al repositorio.
 - RLS está activo. `anon` no tiene acceso directo a las tablas. `authenticated` solo ve lo que le corresponde si migras a Supabase Auth.
-- El resultado del sorteo se filtra en el servidor: cada usuario recibe solo su asignación.
-- No hay rate limiting. Añádelo antes de exponer la app a un público amplio.
+- El resultado del sorteo se filtra en el servidor: cada usuario recibe solo su asignación. Los correos de los participantes solo los ve el organizador.
+- Las exclusiones son bidireccionales: si A no puede regalar a B, B tampoco puede regalar a A.
+- Solo el creador puede borrar una sala; el borrado se valida en una transacción con `FOR UPDATE`.
+- Hay rate limiting en memoria por IP y scope. En serverless no es consistente entre instancias: para protección estricta usa WAF/Redis o un CAPTCHA.
+- `middleware.ts` y `next.config.ts` añaden HTTPS, CSP, HSTS, `nosniff`, bloqueo de frames, `no-store` en APIs y bloqueo de rutas sensibles.
+- Los esquemas Zod usan `.strict()`, validan UUIDs, longitudes y caracteres de control; los formularios incluyen un honeypot anti-bots.
 - Las operaciones críticas usan transacciones y locks (`SELECT ... FOR UPDATE`) para evitar condiciones de carrera.
+- TLS cifra el tráfico a Supabase. El pooler usa una cadena autofirmada; si necesitas validación estricta, configura `DATABASE_SSL_CA` y `DATABASE_SSL_REJECT_UNAUTHORIZED=true`.
+- `bun audit` queda con un aviso low de `deepmerge` (dependencia transitiva de Resend) sin versión corregida disponible.

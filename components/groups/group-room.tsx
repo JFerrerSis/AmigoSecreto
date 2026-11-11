@@ -409,9 +409,11 @@ export function GroupRoom({ groupId }: { groupId: string }) {
                 icon={Mail}
                 label="Notificaciones"
                 value={
-                  group.send_emails
-                    ? `${emailCount} ${pluralize(emailCount, "correo", "correos")}`
-                    : "Desactivadas"
+                  isCreator
+                    ? group.send_emails
+                      ? `${emailCount} ${pluralize(emailCount, "correo", "correos")}`
+                      : "Desactivadas"
+                    : "Solo organizador"
                 }
               />
               <div className="h-px bg-line" />

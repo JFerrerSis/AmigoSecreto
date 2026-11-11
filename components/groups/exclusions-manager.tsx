@@ -139,7 +139,7 @@ export function ExclusionsManager({
               Reglas de exclusión
             </h2>
             <p className="text-[11px] font-medium text-muted">
-              Parejas que no pueden regalarse entre sí
+              Parejas que no pueden regalarse entre sí en ningún sentido
             </p>
           </div>
         </div>
@@ -212,6 +212,11 @@ export function ExclusionsManager({
                 Esta pareja ya está bloqueada.
               </p>
             ) : null}
+
+            <p className="mt-3 text-[11px] leading-relaxed text-muted">
+              La regla es mutua: si bloqueas a A con B, A no puede regalar a B
+              y B tampoco puede regalar a A.
+            </p>
 
             <div className="mt-6">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">

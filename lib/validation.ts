@@ -8,7 +8,11 @@ export const createGroupSchema = z
       .string()
       .trim()
       .min(3, "El nombre debe tener al menos 3 caracteres.")
-      .max(80, "El nombre no puede superar los 80 caracteres."),
+      .max(80, "El nombre no puede superar los 80 caracteres.")
+      .regex(
+        /^[^\u0000-\u001F\u007F]*$/,
+        "El nombre contiene caracteres no válidos.",
+      ),
     minBudget: z.coerce
       .number()
       .min(0, "El monto mínimo no puede ser negativo.")
@@ -29,7 +33,9 @@ export const createGroupSchema = z
       .string()
       .datetime({ offset: true, message: "La fecha límite no es válida." }),
     sendEmails: z.boolean().default(true),
+    website: z.string().max(0).optional(),
   })
+  .strict()
   .refine((data) => data.maxBudget >= data.minBudget, {
     message: "El monto máximo debe ser mayor o igual al mínimo.",
     path: ["maxBudget"],
@@ -41,11 +47,13 @@ export const createGroupSchema = z
 
 export type CreateGroupInput = z.infer<typeof createGroupSchema>;
 
-export const joinGroupSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .min(6, "El enlace de invitación no es válido.")
-    .max(32, "El enlace de invitación no es válido.")
-    .regex(/^[A-Za-z0-9_-]+$/, "El enlace de invitación no es válido."),
-});
+export const joinGroupSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .min(6, "El enlace de invitación no es válido.")
+      .max(32, "El enlace de invitación no es válido.")
+      .regex(/^[A-Za-z0-9_-]+$/, "El enlace de invitación no es válido."),
+  })
+  .strict();

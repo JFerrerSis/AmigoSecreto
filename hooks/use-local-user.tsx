@@ -18,6 +18,7 @@ interface ProfileInput {
   intent: "login" | "create";
   fullName?: string;
   email: string;
+  website?: string;
 }
 
 interface LocalUserContextValue {

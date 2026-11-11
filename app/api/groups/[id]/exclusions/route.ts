@@ -5,28 +5,41 @@ import { createExclusion, deleteExclusion } from "@/lib/db/groups";
 import { LocalApiError } from "@/lib/local/errors";
 import { localErrorResponse, requireUser } from "@/lib/local/responses";
 import { getSessionUser } from "@/lib/local/session";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { assertSameOrigin } from "@/lib/security/request";
 
-const createSchema = z.object({
-  userA: z.string().min(1),
-  userB: z.string().min(1),
-});
+const createSchema = z
+  .object({
+    userA: z.string().uuid(),
+    userB: z.string().uuid(),
+  })
+  .strict();
 
-const deleteSchema = z.object({
-  exclusionId: z.string().min(1),
-});
+const deleteSchema = z
+  .object({
+    exclusionId: z.string().uuid(),
+  })
+  .strict();
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    assertSameOrigin(request);
+    enforceRateLimit(request, {
+      scope: "exclusion-create",
+      limit: 60,
+      windowMs: 10 * 60_000,
+    });
+
     const user = requireUser(await getSessionUser());
     const { id } = await params;
     const body = await request.json().catch(() => null);
     const parsed = createSchema.safeParse(body);
 
     if (!parsed.success) {
-      throw new LocalApiError("Selecciona dos participantes.", 422);
+      throw new LocalApiError("Selecciona dos participantes válidos.", 422);
     }
 
     const [userA, userB] = [parsed.data.userA, parsed.data.userB].sort();
@@ -48,6 +61,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    assertSameOrigin(request);
+    enforceRateLimit(request, {
+      scope: "exclusion-delete",
+      limit: 60,
+      windowMs: 10 * 60_000,
+    });
+
     const user = requireUser(await getSessionUser());
     const { id } = await params;
     const body = await request.json().catch(() => null);

@@ -48,6 +48,21 @@ describe("buildDraw", () => {
     expectValidDraw(givers, buildDraw(givers, exclusions), exclusions);
   });
 
+  it("treats a reversed exclusion as bidirectional", () => {
+    const givers = members(["a", "b", "c", "d"]);
+    const exclusions = [{ user_id_1: "b", user_id_2: "a" }];
+    const pairs = buildDraw(givers, exclusions);
+
+    expectValidDraw(givers, pairs, exclusions);
+    expect(
+      pairs.some(
+        (pair) =>
+          (pair.giver_id === "a" && pair.receiver_id === "b") ||
+          (pair.giver_id === "b" && pair.receiver_id === "a"),
+      ),
+    ).toBe(false);
+  });
+
   it("is randomized across runs", () => {
     const givers = members(["a", "b", "c", "d"]);
     const signatures = new Set<string>();
