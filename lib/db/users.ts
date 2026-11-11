@@ -50,7 +50,7 @@ export async function authenticateLocalUser(
   if (input.intent === "login") {
     if (!existing) {
       throw new LocalApiError(
-        "No encontramos una identidad con ese correo. Crea una nueva.",
+        "No encontramos una cuenta con ese correo. Crea una nueva.",
         404,
         "USER_NOT_FOUND",
       );

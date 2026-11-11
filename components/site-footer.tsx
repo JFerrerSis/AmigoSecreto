@@ -13,22 +13,41 @@ export function SiteFooter() {
             Intercambios de regalos con sorteo justo, reglas claras y resultados
             privados.
           </p>
+          <p className="max-w-sm text-xs leading-relaxed text-muted">
+            Usamos cookies necesarias para mantener tu sesión.{" "}
+            <Link
+              href="/cookies"
+              className="font-semibold text-pine transition hover:text-pine-deep"
+            >
+              Más información
+            </Link>
+            .
+          </p>
         </div>
 
         <div className="flex flex-col items-start gap-3 sm:items-end">
           <span className="inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-medium text-muted">
             <LockKeyhole className="size-3.5 text-pine" aria-hidden />
-            Privacidad por diseño
+            Tus resultados, solo tuyos.
           </span>
           <p className="text-xs text-muted">
             © {new Date().getFullYear()} Amigo Secreto
           </p>
-          <div className="flex gap-5 text-xs font-medium text-muted">
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-muted">
             <Link href="/#como-funciona" className="transition hover:text-ink">
               Cómo funciona
             </Link>
             <Link href="/dashboard" className="transition hover:text-ink">
               Mis salas
+            </Link>
+            <Link href="/terminos" className="transition hover:text-ink">
+              Términos de uso
+            </Link>
+            <Link href="/privacidad" className="transition hover:text-ink">
+              Privacidad
+            </Link>
+            <Link href="/cookies" className="transition hover:text-ink">
+              Cookies
             </Link>
           </div>
         </div>

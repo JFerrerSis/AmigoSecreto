@@ -27,7 +27,7 @@ export function HeroCard() {
 
       <div className="absolute -left-4 bottom-16 z-20 hidden animate-float-slow items-center gap-2 rounded-full border border-line bg-paper/95 px-4 py-2.5 shadow-lift backdrop-blur sm:flex [animation-delay:1.5s]">
         <ShieldCheck className="size-4 text-pine" aria-hidden />
-        <span className="text-xs font-semibold text-ink">Sorteo verificado</span>
+        <span className="text-xs font-semibold text-ink">Sorteo justo</span>
       </div>
 
       <div className="relative rotate-[-1.5deg] rounded-5xl border border-line bg-paper p-4 shadow-float">

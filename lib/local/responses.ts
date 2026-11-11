@@ -27,7 +27,7 @@ export function localErrorResponse(error: unknown) {
 export function requireUser<T>(user: T | null): T {
   if (!user) {
     throw new LocalApiError(
-      "Debes crear tu identidad local para continuar.",
+      "Debes crear tu cuenta para continuar.",
       401,
       "NO_SESSION",
     );

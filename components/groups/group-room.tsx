@@ -97,10 +97,10 @@ export function GroupRoom({ groupId }: { groupId: string }) {
             <LockKeyhole className="size-6" aria-hidden />
           </span>
           <h1 className="mt-6 font-display text-4xl leading-tight text-ink">
-            Necesitas una identidad local.
+            Necesitas iniciar sesión.
           </h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted">
-            Crea tu identidad con nombre y correo para entrar a esta sala y ver
+            Crea tu cuenta con nombre y correo para entrar a esta sala y ver
             tu resultado privado.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
@@ -478,12 +478,11 @@ export function GroupRoom({ groupId }: { groupId: string }) {
               </span>
               <div>
                 <p className="text-sm font-semibold text-ink">
-                  Privacidad garantizada
+                  Tu resultado es privado
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted">
-                  Las asignaciones se guardan en la base local del proyecto y
-                  solo se entregan a la sesión de cada participante. El
-                  organizador tampoco ve a quién te tocó regalar.
+                  Cada participante ve solo su asignación. Ni el organizador ve
+                  a quién te tocó regalar.
                 </p>
               </div>
             </div>

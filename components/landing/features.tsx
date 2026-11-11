@@ -67,8 +67,8 @@ export function Features() {
               Exclusiones que de verdad se respetan
             </h3>
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted">
-              Bloquea parejas, familiares o cualquier combinación incómoda. El
-              algoritmo valida cada asignación antes de guardar el resultado.
+              Bloquea parejas, familiares o cualquier combinación incómoda. La
+              app revisa cada asignación antes de guardar el resultado.
             </p>
             <ExclusionVisual />
           </article>
@@ -78,14 +78,14 @@ export function Features() {
               <LockKeyhole className="size-5" aria-hidden />
             </span>
             <h3 className="mt-6 font-display text-3xl leading-tight">
-              Privacidad por diseño
+              Solo tú ves tu resultado
             </h3>
             <p className="mt-3 text-sm leading-relaxed text-paper/70">
-              La base local solo entrega a cada participante la asignación donde
-              él es el que regala. Ni el organizador recibe todas las parejas.
+              Cada participante ve únicamente a quién le regala. Ni el
+              organizador recibe todas las parejas.
             </p>
-            <div className="mt-8 rounded-2xl border border-paper/15 bg-paper/5 px-4 py-3 font-mono text-[11px] leading-relaxed text-paper/65">
-              draw.giver_id === session.user.id
+            <div className="mt-8 rounded-2xl border border-paper/15 bg-paper/5 px-4 py-3 text-[11px] leading-relaxed text-paper/65">
+              Tú ves tu asignación. Nadie más necesita verla.
             </div>
           </article>
 
@@ -139,8 +139,7 @@ export function Features() {
                   </h3>
                   <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted">
                     El enlace de invitación es único por sala. Si alguien aún no
-                    tiene identidad local, la crea y vuelve automáticamente a la
-                    sala.
+                    tiene cuenta, la crea y vuelve automáticamente a la sala.
                   </p>
                 </div>
               </div>
@@ -151,7 +150,7 @@ export function Features() {
                 </span>
                 <span className="inline-flex items-center gap-2">
                   <LockKeyhole className="size-4 text-pine" aria-hidden />
-                  Acceso seguro
+                  Acceso privado
                 </span>
               </div>
             </div>

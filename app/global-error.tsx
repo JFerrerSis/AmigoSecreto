@@ -56,7 +56,7 @@ export default function GlobalError({
             No pudimos cargar la aplicación.
           </h1>
           <p style={{ margin: 0, color: "#6b665d", lineHeight: 1.6 }}>
-            {error.message || "Inténtalo de nuevo. Tus datos locales no se pierden."}
+            {error.message || "Inténtalo de nuevo. Tu información no se pierde."}
           </p>
           <button
             type="button"

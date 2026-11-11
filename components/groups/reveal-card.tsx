@@ -147,9 +147,8 @@ export function RevealCard({ group, receiver, userId }: RevealCardProps) {
           <LockKeyhole className="size-4" aria-hidden />
         </span>
         <p className="text-xs leading-relaxed text-muted">
-          Esta tarjeta solo es visible para tu identidad local. Si cierras
-          sesión, el resultado seguirá guardado y podrás volver a consultarlo
-          cuando quieras.
+          Esta tarjeta solo es visible para ti. Si cierras sesión, el resultado
+          seguirá guardado y podrás volver a consultarlo cuando quieras.
         </p>
       </div>
     </section>

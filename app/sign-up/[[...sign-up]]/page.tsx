@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { LocalAuthForm } from "@/components/auth/local-auth-form";
 
 export const metadata: Metadata = {
-  title: "Crear identidad",
+  title: "Crear cuenta",
 };
 
 function safeRedirect(value: string | string[] | undefined) {

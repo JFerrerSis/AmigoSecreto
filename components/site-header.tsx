@@ -19,7 +19,7 @@ export function SiteHeader() {
     await signOut();
     toast({
       title: "Sesión cerrada",
-      description: "Tu identidad local sigue guardada para cuando vuelvas.",
+      description: "Tus salas siguen guardadas para cuando vuelvas.",
       variant: "info",
     });
     router.push("/");
@@ -39,7 +39,7 @@ export function SiteHeader() {
             Cómo funciona
           </Link>
           <Link
-            href="/#privacidad"
+            href="/privacidad"
             className="text-sm font-medium text-muted transition hover:text-ink"
           >
             Privacidad
@@ -90,8 +90,8 @@ export function SiteHeader() {
                 type="button"
                 onClick={() => void handleSignOut()}
                 className="rounded-full p-2.5 text-muted transition hover:bg-sand hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine/30"
-                aria-label="Cerrar sesión local"
-                title="Cerrar sesión local"
+                aria-label="Cerrar sesión"
+                title="Cerrar sesión"
               >
                 <LogOut className="size-4" aria-hidden />
               </button>
@@ -111,7 +111,7 @@ export function SiteHeader() {
                   className: "hidden sm:inline-flex",
                 })}
               >
-                Crear identidad
+                Crear cuenta
               </Link>
               <Link
                 href="/sign-up"

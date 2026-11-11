@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { ArrowRight, HardDrive, ShieldCheck } from "lucide-react";
+import { ArrowRight, Gift, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -58,17 +58,17 @@ export function LocalAuthForm({
         website,
       });
       toast({
-        title: isSignUp ? "Identidad creada" : "Bienvenido de vuelta",
+        title: isSignUp ? "Cuenta creada" : "Bienvenido de vuelta",
         description: isSignUp
           ? "Ya puedes crear salas y participar en sorteos."
-          : "Usamos tu identidad local existente. Ya estás dentro.",
+          : "Entraste a tu cuenta. Ya puedes ver tus salas.",
         variant: "success",
       });
       router.replace(redirectUrl);
       router.refresh();
     } catch (error) {
       toast({
-        title: "No pudimos guardar tu identidad",
+        title: "No pudimos guardar tus datos",
         description:
           error instanceof Error ? error.message : "Inténtalo de nuevo.",
         variant: "error",
@@ -80,16 +80,16 @@ export function LocalAuthForm({
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
         <span className="inline-flex items-center gap-2 rounded-full border border-pine/15 bg-pine/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-pine">
-          <HardDrive className="size-3" aria-hidden />
-          Identidad local · sesión firmada
+          <Gift className="size-3" aria-hidden />
+          Organiza sin enredos
         </span>
         <h1 className="mt-4 font-display text-4xl leading-tight text-ink">
-          {isSignUp ? "Crea tu identidad local" : "Entra a tus salas"}
+          {isSignUp ? "Crea tu cuenta" : "Entra a tus salas"}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
           {isSignUp
-            ? "Tu nombre y correo se guardan en la base de datos privada del proyecto para identificar tus salas y resultados. No compartimos tus datos con terceros."
-            : "Escribe el correo con el que creaste tu identidad. Si ya existe, entras directo sin volver a escribir tu nombre."}
+            ? "Solo necesitamos tu nombre y correo para que tus salas y resultados queden asociados a ti. No compartimos tus datos con terceros."
+            : "Escribe el correo con el que creaste tu cuenta. Si ya existe, entras directo sin volver a escribir tu nombre."}
         </p>
       </div>
 
@@ -134,8 +134,8 @@ export function LocalAuthForm({
             label="Correo"
             hint={
               isSignUp
-                ? "Lo usaremos para identificar tu identidad en este proyecto."
-                : "Si ya creaste tu identidad, este correo te hace entrar directo."
+                ? "Lo usaremos para reconocerte cuando vuelvas."
+                : "Si ya creaste tu cuenta, este correo te hace entrar directo."
             }
             error={errors.email}
           >
@@ -161,19 +161,19 @@ export function LocalAuthForm({
           className="mt-6 w-full"
           loading={saving}
         >
-          {isSignUp ? "Crear mi identidad" : "Ingresar"}
+          {isSignUp ? "Crear mi cuenta" : "Ingresar"}
           <ArrowRight className="size-4" aria-hidden />
         </Button>
 
         <p className="mt-4 text-center text-xs text-muted">
-          {isSignUp ? "¿Ya tienes identidad?" : "¿Todavía no tienes identidad?"}{" "}
+          {isSignUp ? "¿Ya tienes cuenta?" : "¿Todavía no tienes cuenta?"}{" "}
           <Link
             href={`${isSignUp ? "/sign-in" : "/sign-up"}?redirect_url=${encodeURIComponent(
               redirectUrl,
             )}`}
             className="font-semibold text-pine transition hover:text-pine-deep"
           >
-            {isSignUp ? "Ingresar" : "Crear una"}
+            {isSignUp ? "Ingresar" : "Crear una cuenta"}
           </Link>
         </p>
 
@@ -183,9 +183,28 @@ export function LocalAuthForm({
             aria-hidden
           />
           <p className="text-[11px] leading-relaxed text-muted">
-            La sesión usa una cookie httpOnly firmada. Tus datos se guardan en
-            la base de datos privada del proyecto y no se comparten con
-            terceros.
+            Al continuar, aceptas los{" "}
+            <Link
+              href="/terminos"
+              className="font-semibold text-pine underline decoration-pine/30 underline-offset-2 transition hover:text-pine-deep"
+            >
+              Términos de uso
+            </Link>{" "}
+            y la{" "}
+            <Link
+              href="/privacidad"
+              className="font-semibold text-pine underline decoration-pine/30 underline-offset-2 transition hover:text-pine-deep"
+            >
+              Política de privacidad
+            </Link>
+            . Usamos cookies necesarias para mantener tu sesión; puedes leer la{" "}
+            <Link
+              href="/cookies"
+              className="font-semibold text-pine underline decoration-pine/30 underline-offset-2 transition hover:text-pine-deep"
+            >
+              política de cookies
+            </Link>
+            .
           </p>
         </div>
       </form>

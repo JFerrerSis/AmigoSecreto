@@ -83,7 +83,7 @@ export function CreateGroupForm() {
 
     if (!user) {
       toast({
-        title: "Primero crea tu identidad local",
+        title: "Primero crea tu cuenta",
         description: "Solo necesitas tu nombre y correo.",
         variant: "info",
       });

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Instrument_Serif, Manrope } from "next/font/google";
 
+import { CookieConsent } from "@/components/cookie-consent";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ToastProvider } from "@/components/ui/toast";
@@ -57,6 +58,7 @@ export default function RootLayout({
               <main className="flex-1">{children}</main>
               <SiteFooter />
             </div>
+            <CookieConsent />
           </LocalUserProvider>
         </ToastProvider>
       </body>

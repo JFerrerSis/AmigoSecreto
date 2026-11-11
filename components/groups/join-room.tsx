@@ -103,7 +103,7 @@ export function JoinRoom({ code }: { code: string }) {
           Te esperan en un amigo secreto.
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-muted">
-          Crea tu identidad local con nombre y correo para unirte. Después te
+          Crea tu cuenta con nombre y correo para unirte. Después te
           llevaremos automáticamente de vuelta a esta invitación.
         </p>
 
@@ -119,7 +119,7 @@ export function JoinRoom({ code }: { code: string }) {
             href={`/sign-up?redirect_url=${redirect}`}
             className={buttonStyles({ variant: "secondary", size: "lg" })}
           >
-            Crear identidad
+            Crear cuenta
           </Link>
         </div>
 

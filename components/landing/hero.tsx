@@ -35,7 +35,7 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
               href={signedIn ? "/dashboard" : "/sign-up"}
               className={buttonStyles({ size: "lg" })}
             >
-              {signedIn ? "Ir a mis salas" : "Crear mi identidad gratis"}
+              {signedIn ? "Ir a mis salas" : "Crear mi cuenta gratis"}
               <ArrowRight className="size-4" aria-hidden />
             </Link>
             <Link

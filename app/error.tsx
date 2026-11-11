@@ -26,7 +26,7 @@ export default function AppError({
         </h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted">
           {error.message ||
-            "Ocurrió un error inesperado. Puedes reintentar sin perder tus datos locales."}
+            "Ocurrió un error inesperado. Puedes reintentar sin perder tu información."}
         </p>
         {error.digest ? (
           <p className="mt-2 font-mono text-[10px] text-muted">
