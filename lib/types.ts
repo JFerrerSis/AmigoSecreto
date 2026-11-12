@@ -52,6 +52,14 @@ export interface DrawResult {
   created_at: string;
 }
 
+export interface GroupWishlist {
+  id: string;
+  group_id: string;
+  user_id: string;
+  content: string;
+  updated_at: string;
+}
+
 export interface GroupWithCount extends Group {
   group_members: { count: number }[];
 }
@@ -61,6 +69,7 @@ export interface GroupData {
   members: GroupMember[];
   exclusions: Exclusion[];
   drawResult: DrawResult | null;
+  wishlists: GroupWishlist[];
 }
 
 export interface LocalUser {

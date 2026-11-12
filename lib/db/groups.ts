@@ -23,6 +23,7 @@ import type {
   Group,
   GroupData,
   GroupMember,
+  GroupWishlist,
   GroupWithCount,
   LocalUser,
 } from "@/lib/types";
@@ -39,6 +40,9 @@ const EXCLUSION_COLUMNS =
 
 const DRAW_COLUMNS =
   "id, group_id, giver_id, receiver_id, created_at";
+
+const WISHLIST_COLUMNS =
+  "id, group_id, user_id, content, updated_at";
 
 export interface JoinGroupResult {
   groupId: string;
@@ -124,7 +128,7 @@ export async function createGroupWithOwner(
   }
 
   throw new LocalApiError(
-    "No pudimos generar un link de invitación. Inténtalo de nuevo.",
+    "No pudimos generar un código de sala. Inténtalo de nuevo.",
     500,
   );
 }
@@ -132,8 +136,7 @@ export async function createGroupWithOwner(
 export async function deleteGroup(
   groupId: string,
   userId: string,
-): Promise<void> {
-  if (!isUuid(groupId) || !isUuid(userId)) {
+): Promise<void> {  if (!isUuid(groupId) || !isUuid(userId)) {
     throw new LocalApiError("Esta sala no existe.", 404);
   }
 
@@ -160,6 +163,70 @@ export async function deleteGroup(
     }
 
     await client.query(`delete from public.groups where id = $1`, [groupId]);
+  });
+}
+
+export async function removeGroupMember(
+  groupId: string,
+  memberId: string,
+  userId: string,
+): Promise<void> {
+  if (!isUuid(groupId) || !isUuid(memberId) || !isUuid(userId)) {
+    throw new LocalApiError("Ese participante ya no está en la sala.", 404);
+  }
+
+  await withTransaction(async (client) => {
+    const groupResult = await client.query<{
+      creator_id: string;
+      status: string;
+    }>(
+      `select creator_id, status
+         from public.groups
+        where id = $1
+          for update`,
+      [groupId],
+    );
+
+    const group = groupResult.rows[0];
+
+    if (!group) {
+      throw new LocalApiError("Esta sala no existe.", 404);
+    }
+
+    if (group.creator_id !== userId) {
+      throw new LocalApiError(
+        "Solo el organizador puede sacar participantes.",
+        403,
+      );
+    }
+
+    if (group.status === "completed") {
+      throw new LocalApiError(
+        "El sorteo ya se realizó; no puedes sacar participantes.",
+        409,
+      );
+    }
+
+    if (memberId === group.creator_id) {
+      throw new LocalApiError(
+        "El organizador no puede salir de su propia sala.",
+        409,
+      );
+    }
+
+    const result = await client.query(
+      `delete from public.group_members
+        where group_id = $1
+          and user_id = $2`,
+      [groupId, memberId],
+    );
+
+    if (result.rowCount === 0) {
+      throw new LocalApiError(
+        "Ese participante ya no está en la sala.",
+        404,
+      );
+    }
   });
 }
 
@@ -216,6 +283,14 @@ export async function getGroupDataForUser(
     [groupId],
   );
 
+  const wishlistsResult = await query<GroupWishlist>(
+    `select ${WISHLIST_COLUMNS}
+       from public.group_wishlists
+      where group_id = $1
+      order by updated_at desc`,
+    [groupId],
+  );
+
   let drawResult: DrawResult | null = null;
 
   if (group.status === "completed") {
@@ -235,20 +310,68 @@ export async function getGroupDataForUser(
     members,
     exclusions: exclusionsResult.rows,
     drawResult,
+    wishlists: wishlistsResult.rows,
   };
+}
+
+export async function upsertGroupWishlist(
+  groupId: string,
+  userId: string,
+  content: string,
+): Promise<GroupWishlist> {
+  if (!isUuid(groupId) || !isUuid(userId)) {
+    throw new LocalApiError("No encontramos esta sala.", 404);
+  }
+
+  const cleanContent = content.replace(/\r\n/g, "\n").trim();
+
+  if (cleanContent.length > 2000) {
+    throw new LocalApiError(
+      "La lista no puede superar los 2000 caracteres.",
+      422,
+    );
+  }
+
+  return withTransaction(async (client) => {
+    const member = await client.query(
+      `select 1
+         from public.group_members
+        where group_id = $1
+          and user_id = $2`,
+      [groupId, userId],
+    );
+
+    if (!member.rowCount) {
+      throw new LocalApiError("No participas en esta sala.", 403);
+    }
+
+    const result = await client.query<GroupWishlist>(
+      `insert into public.group_wishlists (group_id, user_id, content)
+       values ($1, $2, $3)
+       on conflict (group_id, user_id)
+       do update set content = excluded.content,
+                     updated_at = now()
+       returning ${WISHLIST_COLUMNS}`,
+      [groupId, userId, cleanContent],
+    );
+
+    return result.rows[0];
+  });
 }
 
 export async function joinGroupByCode(
   code: string,
   user: LocalUser,
 ): Promise<JoinGroupResult> {
+  const normalizedCode = code.trim().toUpperCase();
+
   return withTransaction(async (client) => {
     const groupResult = await client.query<Group>(
       `select ${GROUP_COLUMNS}
          from public.groups
-        where invite_code = $1
+        where upper(invite_code) = $1
           for update`,
-      [code],
+      [normalizedCode],
     );
 
     const group = groupResult.rows[0];

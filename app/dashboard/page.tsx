@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Gift, Plus, RefreshCw } from "lucide-react";
+import { Gift, Hash, Plus, RefreshCw, UserRound } from "lucide-react";
 
 import { GroupCard } from "@/components/groups/group-card";
+import { JoinByCodeForm } from "@/components/groups/join-by-code-form";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Skeleton } from "@/components/ui/misc";
+import { Card, Skeleton } from "@/components/ui/misc";
 import { useLocalUser } from "@/hooks/use-local-user";
 import type { GroupWithCount } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -147,14 +148,51 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <Link
-          href="/groups/new"
-          className={buttonStyles({ size: "lg", className: "w-full sm:w-auto" })}
-        >
-          <Plus className="size-4" aria-hidden />
-          Nueva sala
-        </Link>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/perfil"
+            className={buttonStyles({
+              variant: "secondary",
+              size: "lg",
+              className: "w-full sm:w-auto",
+            })}
+          >
+            <UserRound className="size-4" aria-hidden />
+            Mi perfil
+          </Link>
+          <Link
+            href="/groups/new"
+            className={buttonStyles({
+              size: "lg",
+              className: "w-full sm:w-auto",
+            })}
+          >
+            <Plus className="size-4" aria-hidden />
+            Nueva sala
+          </Link>
+        </div>
       </div>
+
+      <Card className="mt-8 p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-md">
+            <span className="flex size-10 items-center justify-center rounded-2xl bg-gold/20 text-[#7a571a]">
+              <Hash className="size-5" aria-hidden />
+            </span>
+            <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-pine">
+              ¿Te invitaron?
+            </p>
+            <h2 className="mt-1 font-display text-2xl leading-tight text-ink">
+              Únete con un código
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              Pide al organizador el código de la sala. También puedes usar el
+              link de invitación.
+            </p>
+          </div>
+          <JoinByCodeForm className="max-w-md" />
+        </div>
+      </Card>
 
       <div className="mt-10 flex items-center justify-between gap-4 border-b border-line/70 pb-4">
         <div className="flex gap-1">

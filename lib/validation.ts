@@ -52,8 +52,9 @@ export const joinGroupSchema = z
     code: z
       .string()
       .trim()
-      .min(6, "El enlace de invitación no es válido.")
-      .max(32, "El enlace de invitación no es válido.")
-      .regex(/^[A-Za-z0-9_-]+$/, "El enlace de invitación no es válido."),
+      .min(6, "El código de sala no es válido.")
+      .max(32, "El código de sala no es válido.")
+      .regex(/^[A-Za-z0-9_-]+$/, "El código de sala no es válido.")
+      .transform((value) => value.toUpperCase()),
   })
   .strict();

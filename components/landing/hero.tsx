@@ -47,12 +47,20 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
             </Link>
           </div>
 
-          <Link
-            href="#como-funciona"
-            className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-muted underline-offset-4 transition hover:text-ink hover:underline"
-          >
-            Ver cómo funciona
-          </Link>
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+            <Link
+              href="#como-funciona"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted underline-offset-4 transition hover:text-ink hover:underline"
+            >
+              Ver cómo funciona
+            </Link>
+            <Link
+              href="/join"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-pine underline-offset-4 transition hover:text-pine-deep hover:underline"
+            >
+              Tengo un código de sala
+            </Link>
+          </div>
 
           <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-muted">
             <span className="inline-flex items-center gap-2">

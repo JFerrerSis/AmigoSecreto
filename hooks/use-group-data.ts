@@ -8,6 +8,7 @@ import type {
   Exclusion,
   Group,
   GroupMember,
+  GroupWishlist,
 } from "@/lib/types";
 
 interface GroupDataState {
@@ -17,6 +18,7 @@ interface GroupDataState {
   members: GroupMember[];
   exclusions: Exclusion[];
   drawResult: DrawResult | null;
+  wishlists: GroupWishlist[];
 }
 
 interface GroupPayload {
@@ -24,6 +26,7 @@ interface GroupPayload {
   members: GroupMember[];
   exclusions: Exclusion[];
   drawResult: DrawResult | null;
+  wishlists: GroupWishlist[];
   error?: string;
 }
 
@@ -34,6 +37,7 @@ const initialState: GroupDataState = {
   members: [],
   exclusions: [],
   drawResult: null,
+  wishlists: [],
 };
 
 function groupCacheKey(groupId: string, userId: string) {
@@ -53,12 +57,16 @@ function readCachedGroup(
     const parsed = JSON.parse(raw) as Omit<GroupDataState, "loading" | "error">;
     if (!parsed?.group) return null;
 
-    return { ...parsed, loading: false, error: null };
+    return {
+      ...parsed,
+      wishlists: parsed.wishlists ?? [],
+      loading: false,
+      error: null,
+    };
   } catch {
     return null;
   }
 }
-
 function cacheGroup(groupId: string, userId: string, state: GroupDataState) {
   if (typeof window === "undefined" || !userId) return;
 
@@ -70,6 +78,7 @@ function cacheGroup(groupId: string, userId: string, state: GroupDataState) {
         members: state.members,
         exclusions: state.exclusions,
         drawResult: state.drawResult,
+        wishlists: state.wishlists,
       }),
     );
   } catch {
@@ -133,6 +142,7 @@ export function useGroupData(groupId: string, userId: string) {
           members: payload.members ?? [],
           exclusions: payload.exclusions ?? [],
           drawResult: payload.drawResult ?? null,
+          wishlists: payload.wishlists ?? [],
         };
 
         setState(nextState);

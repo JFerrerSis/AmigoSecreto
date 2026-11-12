@@ -126,7 +126,7 @@ export function JoinRoom({ code }: { code: string }) {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted">
           <span className="inline-flex items-center gap-1.5">
             <Link2 className="size-3.5 text-pine" aria-hidden />
-            Invitación única
+            Código único
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Users className="size-3.5 text-pine" aria-hidden />
@@ -151,10 +151,10 @@ export function JoinRoom({ code }: { code: string }) {
           No pudimos unirte
         </p>
         <h1 className="mt-3 font-display text-4xl leading-[1.03] tracking-[-0.02em] text-ink">
-          La invitación no está disponible.
+          El código no está disponible.
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-muted">
-          {error ?? "Inténtalo de nuevo o pide un nuevo link al organizador."}
+          {error ?? "Inténtalo de nuevo o pide el código al organizador."}
         </p>
 
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
@@ -168,19 +168,19 @@ export function JoinRoom({ code }: { code: string }) {
             Reintentar
           </Button>
           <Link
-            href="/dashboard"
+            href="/join"
             className={buttonStyles({ variant: "secondary", size: "lg" })}
           >
-            Ir a mis salas
+            Probar otro código
           </Link>
         </div>
 
         <Link
-          href="/"
+          href="/dashboard"
           className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-muted transition hover:text-ink"
         >
           <ArrowLeft className="size-3.5" aria-hidden />
-          Volver al inicio
+          Ir a mis salas
         </Link>
       </JoinShell>
     );

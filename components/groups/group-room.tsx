@@ -9,6 +9,7 @@ import {
   Check,
   Copy,
   Gift,
+  Hash,
   Link2,
   LockKeyhole,
   Mail,
@@ -26,12 +27,14 @@ import { DrawPanel } from "@/components/groups/draw-panel";
 import { ExclusionsManager } from "@/components/groups/exclusions-manager";
 import { ParticipantList } from "@/components/groups/participant-list";
 import { RevealCard } from "@/components/groups/reveal-card";
+import { WishlistPanel } from "@/components/groups/wishlist-panel";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Badge, Card, InlineAlert, Skeleton } from "@/components/ui/misc";
 import { useCopy } from "@/hooks/use-copy";
 import { useGroupData } from "@/hooks/use-group-data";
 import { useLocalUser } from "@/hooks/use-local-user";
 import { useToast } from "@/components/ui/toast";
+import type { GroupMember } from "@/lib/types";
 import {
   formatCurrency,
   formatDate,
@@ -47,13 +50,15 @@ export function GroupRoom({ groupId }: { groupId: string }) {
     members,
     exclusions,
     drawResult,
+    wishlists,
     loading,
     error,
     refresh,
   } = useGroupData(groupId, userId);
 
   const { toast } = useToast();
-  const { copied, copy } = useCopy();
+  const { copied: copiedLink, copy: copyLink } = useCopy();
+  const { copied: copiedCode, copy: copyCode } = useCopy();
   const [origin, setOrigin] = useState("");
   const [canShare, setCanShare] = useState(false);
 
@@ -156,6 +161,7 @@ export function GroupRoom({ groupId }: { groupId: string }) {
 
   const isCreator = group.creator_id === userId;
   const inviteUrl = origin ? `${origin}/join/${group.invite_code}` : "";
+  const roomCode = group.invite_code.toUpperCase();
   const budget =
     Number(group.min_budget) === Number(group.max_budget)
       ? formatCurrency(group.min_budget, group.currency)
@@ -167,7 +173,7 @@ export function GroupRoom({ groupId }: { groupId: string }) {
   async function copyInvite() {
     if (!inviteUrl) return;
 
-    const success = await copy(inviteUrl);
+    const success = await copyLink(inviteUrl);
 
     toast(
       success
@@ -179,6 +185,24 @@ export function GroupRoom({ groupId }: { groupId: string }) {
         : {
             title: "No se pudo copiar",
             description: "Selecciona el enlace manualmente e inténtalo de nuevo.",
+            variant: "error",
+          },
+    );
+  }
+
+  async function copyRoomCode() {
+    const success = await copyCode(roomCode);
+
+    toast(
+      success
+        ? {
+            title: "Código copiado",
+            description: "Compártelo con tu grupo para que se unan.",
+            variant: "success",
+          }
+        : {
+            title: "No se pudo copiar",
+            description: "Selecciona el código manualmente e inténtalo de nuevo.",
             variant: "error",
           },
     );
@@ -201,6 +225,43 @@ export function GroupRoom({ groupId }: { groupId: string }) {
     }
 
     await copyInvite();
+  }
+
+  async function removeMember(member: GroupMember) {
+    try {
+      const response = await fetch(
+        `/api/groups/${groupId}/members/${member.user_id}`,
+        {
+          method: "DELETE",
+          credentials: "same-origin",
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      if (!response.ok) {
+        throw new Error(
+          payload?.error ?? "No pudimos sacar al participante.",
+        );
+      }
+
+      toast({
+        title: "Participante eliminado",
+        description: `${member.full_name} ya no está en la sala.`,
+        variant: "success",
+      });
+      await refresh(true);
+      return true;
+    } catch (error) {
+      toast({
+        title: "No pudimos sacar al participante",
+        description:
+          error instanceof Error ? error.message : "Inténtalo de nuevo.",
+        variant: "error",
+      });
+      return false;
+    }
   }
 
   return (
@@ -268,56 +329,88 @@ export function GroupRoom({ groupId }: { groupId: string }) {
         </div>
       </div>
 
-      <Card className="mt-7 flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-pine/10 text-pine">
-            <Link2 className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
-              {group.status === "pending"
-                ? "Link de invitación"
-                : "Link de la sala"}
-            </p>
-            <p className="mt-0.5 truncate font-mono text-xs text-ink sm:text-sm">
-              {inviteUrl || `/join/${group.invite_code}`}
-            </p>
+      <Card className="mt-7 p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-pine/10 text-pine">
+              <Hash className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+                {group.status === "pending"
+                  ? "Código de sala"
+                  : "Código de la sala"}
+              </p>
+              <p className="mt-0.5 font-mono text-xl font-bold tracking-[0.18em] text-ink sm:text-2xl">
+                {roomCode}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex shrink-0 gap-2">
-          {canShare ? (
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => void shareInvite()}
-            >
-              <Share2 className="size-4" aria-hidden />
-              Compartir
-            </Button>
-          ) : null}
           <Button
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => void copyInvite()}
-            disabled={!inviteUrl}
+            onClick={() => void copyRoomCode()}
           >
-            {copied ? (
+            {copiedCode ? (
               <Check className="size-4 text-pine" aria-hidden />
             ) : (
               <Copy className="size-4" aria-hidden />
             )}
-            {copied ? "Copiado" : "Copiar link"}
+            {copiedCode ? "Copiado" : "Copiar código"}
           </Button>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link2 className="size-4 shrink-0 text-pine" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+                {group.status === "pending"
+                  ? "Link de invitación"
+                  : "Link de la sala"}
+              </p>
+              <p className="mt-0.5 truncate font-mono text-xs text-ink sm:text-sm">
+                {inviteUrl || `/join/${group.invite_code}`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 gap-2">
+            {canShare ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => void shareInvite()}
+              >
+                <Share2 className="size-4" aria-hidden />
+                Compartir
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void copyInvite()}
+              disabled={!inviteUrl}
+            >
+              {copiedLink ? (
+                <Check className="size-4 text-pine" aria-hidden />
+              ) : (
+                <Copy className="size-4" aria-hidden />
+              )}
+              {copiedLink ? "Copiado" : "Copiar link"}
+            </Button>
+          </div>
         </div>
       </Card>
 
       {group.status === "completed" ? (
         <p className="mt-2 px-1 text-[11px] text-muted">
-          El sorteo ya se realizó. El link se conserva para que los
-          participantes vuelvan a consultar su resultado.
+          El sorteo ya se realizó. El código y el link se conservan para que
+          los participantes vuelvan a consultar su resultado.
         </p>
       ) : null}
 
@@ -372,6 +465,19 @@ export function GroupRoom({ groupId }: { groupId: string }) {
             maxParticipants={group.max_participants}
             isCreator={isCreator}
             status={group.status}
+            onRemove={
+              isCreator && group.status === "pending"
+                ? removeMember
+                : undefined
+            }
+          />
+
+          <WishlistPanel
+            groupId={group.id}
+            members={members}
+            wishlists={wishlists}
+            currentUserId={userId}
+            onChanged={() => refresh(true)}
           />
 
           {isCreator && group.status === "pending" ? (

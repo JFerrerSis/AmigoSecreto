@@ -41,7 +41,7 @@ export function LocalAuthForm({
       nextErrors.fullName = "Escribe tu nombre.";
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(cleanEmail)) {
       nextErrors.email = "Escribe un correo válido.";
     }
 

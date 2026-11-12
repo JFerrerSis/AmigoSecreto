@@ -1,6 +1,6 @@
 import "server-only";
 
-import { isUniqueViolation, isUuid, query } from "@/lib/db/pool";
+import { isUniqueViolation, isUuid, query, withTransaction } from "@/lib/db/pool";
 import { LocalApiError } from "@/lib/local/errors";
 import type { LocalUser } from "@/lib/types";
 
@@ -69,6 +69,13 @@ export async function authenticateLocalUser(
         [existing.id, fullName],
       );
 
+      await query(
+        `update public.group_members
+            set full_name = $2
+          where user_id = $1`,
+        [existing.id, fullName],
+      );
+
       return { user: updated.rows[0] ?? existing, existing: true };
     }
 
@@ -92,4 +99,44 @@ export async function authenticateLocalUser(
 
     throw error;
   }
+}
+
+export async function updateUserName(
+  userId: string,
+  fullName: string,
+): Promise<LocalUser> {
+  if (!isUuid(userId)) {
+    throw new LocalApiError("No encontramos tu cuenta.", 404);
+  }
+
+  const cleanName = fullName.trim();
+
+  if (cleanName.length < 2 || cleanName.length > 80) {
+    throw new LocalApiError("Escribe un nombre válido.", 422);
+  }
+
+  return withTransaction(async (client) => {
+    const result = await client.query<LocalUser>(
+      `update public.users
+          set full_name = $2
+        where id = $1
+      returning ${USER_COLUMNS}`,
+      [userId, cleanName],
+    );
+
+    const user = result.rows[0];
+
+    if (!user) {
+      throw new LocalApiError("No encontramos tu cuenta.", 404);
+    }
+
+    await client.query(
+      `update public.group_members
+          set full_name = $2
+        where user_id = $1`,
+      [userId, cleanName],
+    );
+
+    return user;
+  });
 }

@@ -31,12 +31,18 @@ export function SiteHeader() {
       <div className="mx-auto flex h-[72px] w-full max-w-6xl items-center justify-between gap-4 px-5">
         <Logo />
 
-        <nav className="hidden items-center gap-8 md:flex" aria-label="Principal">
+        <nav className="hidden items-center gap-5 md:flex lg:gap-7" aria-label="Principal">
           <Link
             href="/#como-funciona"
             className="text-sm font-medium text-muted transition hover:text-ink"
           >
             Cómo funciona
+          </Link>
+          <Link
+            href="/join"
+            className="text-sm font-medium text-muted transition hover:text-ink"
+          >
+            Unirse
           </Link>
           <Link
             href="/privacidad"
@@ -45,12 +51,20 @@ export function SiteHeader() {
             Privacidad
           </Link>
           {user ? (
-            <Link
-              href="/dashboard"
-              className="text-sm font-medium text-muted transition hover:text-ink"
-            >
-              Mis salas
-            </Link>
+            <>
+              <Link
+                href="/dashboard"
+                className="text-sm font-medium text-muted transition hover:text-ink"
+              >
+                Mis salas
+              </Link>
+              <Link
+                href="/perfil"
+                className="text-sm font-medium text-muted transition hover:text-ink"
+              >
+                Mi perfil
+              </Link>
+            </>
           ) : null}
         </nav>
 

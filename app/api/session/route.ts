@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { authenticateLocalUser } from "@/lib/db/users";
+import { authenticateLocalUser, updateUserName } from "@/lib/db/users";
 import { LocalApiError } from "@/lib/local/errors";
-import { localErrorResponse } from "@/lib/local/responses";
+import { localErrorResponse, requireUser } from "@/lib/local/responses";
 import {
   clearSessionUser,
   getSessionUser,
@@ -28,7 +28,8 @@ const sessionSchema = z
       .string()
       .trim()
       .email("Escribe un correo válido.")
-      .max(160, "El correo es demasiado largo."),
+      .max(160, "El correo es demasiado largo.")
+      .transform((value) => value.toLowerCase()),
     website: z.string().max(0).optional(),
   })
   .strict()
@@ -41,6 +42,20 @@ const sessionSchema = z
       });
     }
   });
+
+const profileSchema = z
+  .object({
+    fullName: z
+      .string()
+      .trim()
+      .min(2, "Escribe tu nombre.")
+      .max(80, "El nombre es demasiado largo.")
+      .regex(
+        /^[^\u0000-\u001F\u007F]*$/,
+        "El nombre contiene caracteres no válidos.",
+      ),
+  })
+  .strict();
 
 export async function GET(request: Request) {
   try {
@@ -92,6 +107,34 @@ export async function POST(request: Request) {
     await setSessionUser(result.user.id);
 
     return NextResponse.json(result);
+  } catch (error) {
+    return localErrorResponse(error);
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    assertSameOrigin(request);
+    enforceRateLimit(request, {
+      scope: "session-update",
+      limit: 20,
+      windowMs: 10 * 60_000,
+    });
+
+    const user = requireUser(await getSessionUser());
+    const body = await request.json().catch(() => null);
+    const parsed = profileSchema.safeParse(body);
+
+    if (!parsed.success) {
+      throw new LocalApiError(
+        parsed.error.issues[0]?.message ?? "Datos inválidos.",
+        422,
+      );
+    }
+
+    const updated = await updateUserName(user.id, parsed.data.fullName);
+
+    return NextResponse.json({ user: updated });
   } catch (error) {
     return localErrorResponse(error);
   }

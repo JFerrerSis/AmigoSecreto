@@ -40,6 +40,12 @@ export function SiteFooter() {
             <Link href="/dashboard" className="transition hover:text-ink">
               Mis salas
             </Link>
+            <Link href="/join" className="transition hover:text-ink">
+              Unirse con código
+            </Link>
+            <Link href="/perfil" className="transition hover:text-ink">
+              Mi perfil
+            </Link>
             <Link href="/terminos" className="transition hover:text-ink">
               Términos de uso
             </Link>

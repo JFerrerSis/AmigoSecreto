@@ -153,7 +153,7 @@ export function CreateGroupForm() {
 
       const payload = (await response.json()) as {
         error?: string;
-        group?: { id: string };
+        group?: { id: string; invite_code?: string };
       };
 
       if (!response.ok || !payload.group) {
@@ -162,7 +162,9 @@ export function CreateGroupForm() {
 
       toast({
         title: "Sala creada",
-        description: "Ahora comparte el link para que se unan tus invitados.",
+        description: payload.group.invite_code
+          ? `Código de sala: ${payload.group.invite_code}. Compártelo o usa el link de invitación.`
+          : "Ahora comparte el código o el link para que se unan tus invitados.",
         variant: "success",
       });
       router.push(`/groups/${payload.group.id}`);
@@ -359,7 +361,7 @@ export function CreateGroupForm() {
 
         <div className="flex flex-col-reverse items-center justify-between gap-4 sm:flex-row">
           <p className="text-xs leading-relaxed text-muted">
-            Podrás compartir el link apenas crees la sala.
+            Podrás compartir el código y el link apenas crees la sala.
           </p>
           <Button type="submit" size="lg" loading={submitting} className="w-full sm:w-auto">
             Crear sala
@@ -425,7 +427,7 @@ export function CreateGroupForm() {
                   Invitación
                 </p>
                 <p className="mt-0.5 text-sm font-semibold text-ink">
-                  Link único al crear la sala
+                  Código único al crear la sala
                 </p>
               </div>
             </div>
