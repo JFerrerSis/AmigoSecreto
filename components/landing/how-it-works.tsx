@@ -13,7 +13,7 @@ const steps = [
     icon: Link2,
     title: "Invita con un link",
     description:
-      "Comparte el enlace único. Tus invitados crean su cuenta con nombre y correo, y aparecen en la lista al instante.",
+      "Comparte el enlace único. Tus invitados crean su cuenta con correo y contraseña, y aparecen en la lista al instante.",
   },
   {
     number: "03",

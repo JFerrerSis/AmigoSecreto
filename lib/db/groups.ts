@@ -21,16 +21,22 @@ import type {
   DrawResult,
   Exclusion,
   Group,
+  GroupBan,
   GroupData,
   GroupMember,
   GroupWishlist,
+  GroupWishlistItem,
   GroupWithCount,
   LocalUser,
 } from "@/lib/types";
-import type { CreateGroupInput } from "@/lib/validation";
+import type {
+  CreateGroupInput,
+  UpdateGroupInput,
+  WishlistItemInput,
+} from "@/lib/validation";
 
 const GROUP_COLUMNS =
-  "id, invite_code, name, creator_id, min_budget, max_budget, currency, max_participants, draw_at, send_emails, status, created_at, completed_at";
+  "id, invite_code, name, creator_id, min_budget, max_budget, currency, max_participants, draw_at, status, created_at, completed_at";
 
 const MEMBER_COLUMNS =
   "id, group_id, user_id, email, full_name, avatar_url, joined_at";
@@ -43,6 +49,14 @@ const DRAW_COLUMNS =
 
 const WISHLIST_COLUMNS =
   "id, group_id, user_id, content, updated_at";
+
+const WISHLIST_ITEM_COLUMNS =
+  "id, group_id, user_id, title, url, price, notes, priority, created_at, updated_at";
+
+const BAN_COLUMNS =
+  "b.id, b.group_id, b.user_id, b.created_at as blocked_at, u.full_name, u.email, u.avatar_url";
+
+const WISHLIST_ITEM_LIMIT = 30;
 
 export interface JoinGroupResult {
   groupId: string;
@@ -94,7 +108,7 @@ export async function createGroupWithOwner(
              min_budget, max_budget, currency, max_participants,
              draw_at, send_emails, status
            )
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+           values ($1, $2, $3, $4, $5, $6, $7, $8, false, 'pending')
            returning ${GROUP_COLUMNS}`,
           [
             inviteCode,
@@ -105,7 +119,6 @@ export async function createGroupWithOwner(
             data.currency,
             data.maxParticipants,
             data.drawAt,
-            data.sendEmails,
           ],
         );
 
@@ -131,6 +144,86 @@ export async function createGroupWithOwner(
     "No pudimos generar un código de sala. Inténtalo de nuevo.",
     500,
   );
+}
+
+export async function updateGroup(
+  groupId: string,
+  userId: string,
+  data: UpdateGroupInput,
+): Promise<Group> {
+  if (!isUuid(groupId) || !isUuid(userId)) {
+    throw new LocalApiError("Esta sala no existe.", 404);
+  }
+
+  return withTransaction(async (client) => {
+    const groupResult = await client.query<Group>(
+      `select ${GROUP_COLUMNS}
+         from public.groups
+        where id = $1
+          for update`,
+      [groupId],
+    );
+
+    const group = groupResult.rows[0];
+
+    if (!group) {
+      throw new LocalApiError("Esta sala no existe.", 404);
+    }
+
+    if (group.creator_id !== userId) {
+      throw new LocalApiError(
+        "Solo el organizador puede editar esta sala.",
+        403,
+      );
+    }
+
+    if (group.status === "completed") {
+      throw new LocalApiError(
+        "El sorteo ya se realizó; no puedes editar la sala.",
+        409,
+      );
+    }
+
+    const countResult = await client.query<{ total: number }>(
+      `select count(*)::int as total
+         from public.group_members
+        where group_id = $1`,
+      [groupId],
+    );
+
+    const memberCount = countResult.rows[0]?.total ?? 0;
+
+    if (data.maxParticipants < memberCount) {
+      throw new LocalApiError(
+        `El cupo no puede ser menor a los ${memberCount} participantes actuales.`,
+        422,
+        "MAX_PARTICIPANTS_TOO_LOW",
+      );
+    }
+
+    const updated = await client.query<Group>(
+      `update public.groups
+          set name = $2,
+              min_budget = $3,
+              max_budget = $4,
+              currency = $5,
+              max_participants = $6,
+              draw_at = $7
+        where id = $1
+      returning ${GROUP_COLUMNS}`,
+      [
+        groupId,
+        data.name,
+        data.minBudget,
+        data.maxBudget,
+        data.currency,
+        data.maxParticipants,
+        data.drawAt,
+      ],
+    );
+
+    return updated.rows[0];
+  });
 }
 
 export async function deleteGroup(
@@ -170,6 +263,7 @@ export async function removeGroupMember(
   groupId: string,
   memberId: string,
   userId: string,
+  blockReentry = false,
 ): Promise<void> {
   if (!isUuid(groupId) || !isUuid(memberId) || !isUuid(userId)) {
     throw new LocalApiError("Ese participante ya no está en la sala.", 404);
@@ -225,6 +319,15 @@ export async function removeGroupMember(
       throw new LocalApiError(
         "Ese participante ya no está en la sala.",
         404,
+      );
+    }
+
+    if (blockReentry) {
+      await client.query(
+        `insert into public.group_bans (group_id, user_id)
+         values ($1, $2)
+         on conflict (group_id, user_id) do nothing`,
+        [groupId, memberId],
       );
     }
   });
@@ -291,6 +394,29 @@ export async function getGroupDataForUser(
     [groupId],
   );
 
+  const wishlistItemsResult = await query<GroupWishlistItem>(
+    `select ${WISHLIST_ITEM_COLUMNS}
+       from public.group_wishlist_items
+      where group_id = $1
+      order by created_at asc`,
+    [groupId],
+  );
+
+  let bans: GroupBan[] = [];
+
+  if (canSeeEmails) {
+    const bansResult = await query<GroupBan>(
+      `select ${BAN_COLUMNS}
+         from public.group_bans b
+         join public.users u on u.id = b.user_id
+        where b.group_id = $1
+        order by b.blocked_at desc`,
+      [groupId],
+    );
+
+    bans = bansResult.rows;
+  }
+
   let drawResult: DrawResult | null = null;
 
   if (group.status === "completed") {
@@ -311,6 +437,8 @@ export async function getGroupDataForUser(
     exclusions: exclusionsResult.rows,
     drawResult,
     wishlists: wishlistsResult.rows,
+    wishlistItems: wishlistItemsResult.rows,
+    bans,
   };
 }
 
@@ -359,6 +487,174 @@ export async function upsertGroupWishlist(
   });
 }
 
+export async function createWishlistItem(
+  groupId: string,
+  userId: string,
+  input: WishlistItemInput,
+): Promise<GroupWishlistItem> {
+  if (!isUuid(groupId) || !isUuid(userId)) {
+    throw new LocalApiError("No encontramos esta sala.", 404);
+  }
+
+  return withTransaction(async (client) => {
+    const member = await client.query(
+      `select 1
+         from public.group_members
+        where group_id = $1
+          and user_id = $2`,
+      [groupId, userId],
+    );
+
+    if (!member.rowCount) {
+      throw new LocalApiError("No participas en esta sala.", 403);
+    }
+
+    const count = await client.query<{ total: number }>(
+      `select count(*)::int as total
+         from public.group_wishlist_items
+        where group_id = $1
+          and user_id = $2`,
+      [groupId, userId],
+    );
+
+    if ((count.rows[0]?.total ?? 0) >= WISHLIST_ITEM_LIMIT) {
+      throw new LocalApiError(
+        `Puedes agregar hasta ${WISHLIST_ITEM_LIMIT} regalos por sala.`,
+        409,
+        "WISHLIST_LIMIT_REACHED",
+      );
+    }
+
+    const result = await client.query<GroupWishlistItem>(
+      `insert into public.group_wishlist_items (
+         group_id, user_id, title, url, price, notes, priority
+       )
+       values ($1, $2, $3, $4, $5, $6, $7)
+       returning ${WISHLIST_ITEM_COLUMNS}`,
+      [
+        groupId,
+        userId,
+        input.title,
+        input.url,
+        input.price,
+        input.notes,
+        input.priority,
+      ],
+    );
+
+    return result.rows[0];
+  });
+}
+
+export async function updateWishlistItem(
+  groupId: string,
+  itemId: string,
+  userId: string,
+  input: WishlistItemInput,
+): Promise<GroupWishlistItem> {
+  if (!isUuid(groupId) || !isUuid(itemId) || !isUuid(userId)) {
+    throw new LocalApiError("Ese regalo ya no existe.", 404);
+  }
+
+  const result = await query<GroupWishlistItem>(
+    `update public.group_wishlist_items
+        set title = $4,
+            url = $5,
+            price = $6,
+            notes = $7,
+            priority = $8,
+            updated_at = now()
+      where id = $1
+        and group_id = $2
+        and user_id = $3
+    returning ${WISHLIST_ITEM_COLUMNS}`,
+    [
+      itemId,
+      groupId,
+      userId,
+      input.title,
+      input.url,
+      input.price,
+      input.notes,
+      input.priority,
+    ],
+  );
+
+  const item = result.rows[0];
+
+  if (!item) {
+    throw new LocalApiError("Ese regalo ya no existe.", 404);
+  }
+
+  return item;
+}
+
+export async function deleteWishlistItem(
+  groupId: string,
+  itemId: string,
+  userId: string,
+): Promise<void> {
+  if (!isUuid(groupId) || !isUuid(itemId) || !isUuid(userId)) {
+    throw new LocalApiError("Ese regalo ya no existe.", 404);
+  }
+
+  const result = await query(
+    `delete from public.group_wishlist_items
+      where id = $1
+        and group_id = $2
+        and user_id = $3`,
+    [itemId, groupId, userId],
+  );
+
+  if (result.rowCount === 0) {
+    throw new LocalApiError("Ese regalo ya no existe.", 404);
+  }
+}
+
+export async function unblockGroupMember(
+  groupId: string,
+  memberId: string,
+  userId: string,
+): Promise<void> {
+  if (!isUuid(groupId) || !isUuid(memberId) || !isUuid(userId)) {
+    throw new LocalApiError("Ese bloqueo ya no existe.", 404);
+  }
+
+  await withTransaction(async (client) => {
+    const groupResult = await client.query<{ creator_id: string }>(
+      `select creator_id
+         from public.groups
+        where id = $1
+          for update`,
+      [groupId],
+    );
+
+    const group = groupResult.rows[0];
+
+    if (!group) {
+      throw new LocalApiError("Esta sala no existe.", 404);
+    }
+
+    if (group.creator_id !== userId) {
+      throw new LocalApiError(
+        "Solo el organizador puede desbloquear participantes.",
+        403,
+      );
+    }
+
+    const result = await client.query(
+      `delete from public.group_bans
+        where group_id = $1
+          and user_id = $2`,
+      [groupId, memberId],
+    );
+
+    if (result.rowCount === 0) {
+      throw new LocalApiError("Ese bloqueo ya no existe.", 404);
+    }
+  });
+}
+
 export async function joinGroupByCode(
   code: string,
   user: LocalUser,
@@ -393,6 +689,21 @@ export async function joinGroupByCode(
 
     if (existing.rowCount) {
       return { groupId: group.id, alreadyMember: true };
+    }
+
+    const banned = await client.query(
+      `select 1
+         from public.group_bans
+        where group_id = $1
+          and user_id = $2`,
+      [group.id, user.id],
+    );
+
+    if (banned.rowCount) {
+      throw new LocalApiError(
+        "El organizador bloqueó tu reingreso a esta sala.",
+        403,
+      );
     }
 
     if (group.status === "completed") {

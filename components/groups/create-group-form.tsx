@@ -7,7 +7,6 @@ import {
   CalendarClock,
   Info,
   Link2,
-  Mail,
   Users,
   Wallet,
 } from "lucide-react";
@@ -15,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { useLocalUser } from "@/hooks/use-local-user";
 import { CURRENCIES } from "@/lib/currencies";
@@ -33,7 +31,6 @@ interface FormState {
   currency: CurrencyCode;
   maxParticipants: string;
   drawAt: string;
-  sendEmails: boolean;
 }
 
 const initialState: FormState = {
@@ -43,7 +40,6 @@ const initialState: FormState = {
   currency: "MXN",
   maxParticipants: "10",
   drawAt: "",
-  sendEmails: true,
 };
 
 export function CreateGroupForm() {
@@ -84,7 +80,7 @@ export function CreateGroupForm() {
     if (!user) {
       toast({
         title: "Primero crea tu cuenta",
-        description: "Solo necesitas tu nombre y correo.",
+        description: "Solo necesitas tu nombre, correo y contraseña.",
         variant: "info",
       });
       router.push("/sign-in?redirect_url=/groups/new");
@@ -146,7 +142,6 @@ export function CreateGroupForm() {
           currency: form.currency,
           maxParticipants,
           drawAt: drawDate.toISOString(),
-          sendEmails: form.sendEmails,
           website,
         }),
       });
@@ -317,47 +312,14 @@ export function CreateGroupForm() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-line bg-paper p-6 shadow-soft sm:p-8">
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-2xl bg-gold/20 text-[#7a571a]">
-              <Mail className="size-5" aria-hidden />
-            </span>
-            <div>
-              <h2 className="font-display text-2xl text-ink">
-                Notificaciones por correo
-              </h2>
-              <p className="text-xs text-muted">
-                Avisa a todos cuando el sorteo esté listo.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 flex items-start justify-between gap-5 rounded-2xl border border-line bg-cream/60 p-4">
-            <div>
-              <p className="text-sm font-semibold text-ink">
-                Enviar correos al terminar el sorteo
-              </p>
-              <p className="mt-1 max-w-md text-xs leading-relaxed text-muted">
-                Usaremos el correo con el que cada participante se registró. El
-                mensaje incluye el link directo a la sala, nunca la asignación.
-              </p>
-            </div>
-            <Switch
-              checked={form.sendEmails}
-              onCheckedChange={(checked) => update("sendEmails", checked)}
-              label="Enviar correos al terminar el sorteo"
-            />
-          </div>
-
-          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-pine/15 bg-pine/5 p-4">
-            <Info className="mt-0.5 size-4 shrink-0 text-pine" aria-hidden />
-            <p className="text-xs leading-relaxed text-muted">
-              Las reglas de exclusión (parejas que no pueden regalarse) se
-              configuran dentro de la sala, cuando ya se hayan unido los
-              participantes.
-            </p>
-          </div>
-        </section>
+        <div className="flex items-start gap-3 rounded-2xl border border-pine/15 bg-pine/5 p-4">
+          <Info className="mt-0.5 size-4 shrink-0 text-pine" aria-hidden />
+          <p className="text-xs leading-relaxed text-muted">
+            Las reglas de exclusión (parejas que no pueden regalarse) se
+            configuran dentro de la sala, cuando ya se hayan unido los
+            participantes. Las asignaciones se consultan dentro de la sala.
+          </p>
+        </div>
 
         <div className="flex flex-col-reverse items-center justify-between gap-4 sm:flex-row">
           <p className="text-xs leading-relaxed text-muted">
@@ -432,11 +394,6 @@ export function CreateGroupForm() {
               </div>
             </div>
 
-            <div className="mt-2 rounded-2xl border border-dashed border-line bg-cream/60 px-4 py-3 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
-                {form.sendEmails ? "Correos activados" : "Correos desactivados"}
-              </p>
-            </div>
           </div>
         </div>
       </aside>

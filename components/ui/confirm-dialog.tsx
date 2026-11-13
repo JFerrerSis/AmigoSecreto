@@ -14,6 +14,7 @@ interface ConfirmDialogProps {
   loading?: boolean;
   tone?: "primary" | "danger";
   icon?: ReactNode;
+  children?: ReactNode;
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -27,6 +28,7 @@ export function ConfirmDialog({
   loading = false,
   tone = "primary",
   icon,
+  children,
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
@@ -94,6 +96,8 @@ export function ConfirmDialog({
         >
           {description}
         </p>
+
+        {children ? <div className="mt-4">{children}</div> : null}
 
         <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button

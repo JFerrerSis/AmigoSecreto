@@ -14,10 +14,11 @@ import type { LocalUser } from "@/lib/types";
 
 const USER_CACHE_KEY = "amigo-secreto:user";
 
-interface ProfileInput {
-  intent: "login" | "create";
+export interface ProfileInput {
+  intent: "login" | "create" | "set-password";
   fullName?: string;
   email: string;
+  password?: string;
   website?: string;
 }
 
@@ -26,8 +27,24 @@ interface LocalUserContextValue {
   loading: boolean;
   saving: boolean;
   saveProfile: (input: ProfileInput) => Promise<LocalUser>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<LocalUser>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
+}
+
+export class LocalRequestError extends Error {
+  status: number;
+  code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "LocalRequestError";
+    this.status = status;
+    this.code = code;
+  }
 }
 
 const LocalUserContext = createContext<LocalUserContextValue | null>(null);
@@ -42,7 +59,10 @@ function readCachedUser(): LocalUser | null {
     const parsed = JSON.parse(raw) as LocalUser;
     if (!parsed?.id || !parsed?.full_name) return null;
 
-    return parsed;
+    return {
+      ...parsed,
+      has_password: Boolean(parsed.has_password),
+    };
   } catch {
     return null;
   }
@@ -64,11 +84,15 @@ function cacheUser(user: LocalUser | null) {
 
 async function readJson<T>(response: Response): Promise<T> {
   const payload = (await response.json().catch(() => null)) as
-    | (T & { error?: string })
+    | (T & { error?: string; code?: string })
     | null;
 
   if (!response.ok) {
-    throw new Error(payload?.error ?? "No pudimos completar la operación.");
+    throw new LocalRequestError(
+      payload?.error ?? "No pudimos completar la operación.",
+      response.status,
+      payload?.code,
+    );
   }
 
   return payload as T;
@@ -127,6 +151,28 @@ export function LocalUserProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      setSaving(true);
+
+      try {
+        const response = await fetch("/api/profile/password", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ currentPassword, newPassword }),
+        });
+        const payload = await readJson<{ user: LocalUser }>(response);
+        setUser(payload.user);
+        cacheUser(payload.user);
+        return payload.user;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [],
+  );
+
   const signOut = useCallback(async () => {
     await fetch("/api/session", {
       method: "DELETE",
@@ -137,8 +183,24 @@ export function LocalUserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, saving, saveProfile, signOut, refresh }),
-    [user, loading, saving, saveProfile, signOut, refresh],
+    () => ({
+      user,
+      loading,
+      saving,
+      saveProfile,
+      changePassword,
+      signOut,
+      refresh,
+    }),
+    [
+      user,
+      loading,
+      saving,
+      saveProfile,
+      changePassword,
+      signOut,
+      refresh,
+    ],
   );
 
   return (

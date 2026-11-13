@@ -2,23 +2,33 @@
 
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, UserRound } from "lucide-react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  KeyRound,
+  UserRound,
+} from "lucide-react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Card, Skeleton } from "@/components/ui/misc";
+import { Badge, Card, InlineAlert, Skeleton } from "@/components/ui/misc";
 import { useToast } from "@/components/ui/toast";
 import { useLocalUser } from "@/hooks/use-local-user";
 import { formatDate } from "@/lib/utils";
 
 export function ProfileForm() {
-  const { user, loading, refresh } = useLocalUser();
+  const { user, loading, refresh, changePassword } = useLocalUser();
   const { toast } = useToast();
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -76,6 +86,50 @@ export function ProfileForm() {
       });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasswordError("");
+
+    if (user?.has_password && !currentPassword) {
+      setPasswordError("Escribe tu contraseña actual.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError("La nueva contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast({
+        title: user?.has_password
+          ? "Contraseña actualizada"
+          : "Contraseña creada",
+        description: "Ya puedes entrar con tu correo y contraseña.",
+        variant: "success",
+      });
+    } catch (passwordSaveError) {
+      setPasswordError(
+        passwordSaveError instanceof Error
+          ? passwordSaveError.message
+          : "No pudimos actualizar tu contraseña.",
+      );
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -201,6 +255,108 @@ export function ProfileForm() {
           </Button>
         </div>
       </form>
+
+      <div className="my-8 h-px w-full bg-line" />
+
+      <section aria-labelledby="security-title">
+        <div className="flex items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-pine/10 text-pine">
+            <KeyRound className="size-4" aria-hidden />
+          </span>
+          <div>
+            <h2
+              id="security-title"
+              className="font-display text-2xl leading-tight text-ink"
+            >
+              Seguridad
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              {user.has_password
+                ? "Cambia tu contraseña cuando lo necesites."
+                : "Tu cuenta aún no tiene contraseña. Crea una para proteger tu acceso."}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <Badge variant={user.has_password ? "completed" : "neutral"}>
+            {user.has_password ? (
+              <>
+                <BadgeCheck className="size-3" aria-hidden />
+                Contraseña activa
+              </>
+            ) : (
+              "Sin contraseña"
+            )}
+          </Badge>
+        </div>
+
+        {passwordError ? (
+          <InlineAlert variant="warning" className="mt-5">
+            <p>{passwordError}</p>
+          </InlineAlert>
+        ) : null}
+
+        <form
+          onSubmit={handlePasswordSubmit}
+          className="mt-5 space-y-5"
+          noValidate
+        >
+          {user.has_password ? (
+            <Field htmlFor="currentPassword" label="Contraseña actual">
+              <Input
+                id="currentPassword"
+                type="password"
+                value={currentPassword}
+                onChange={(event) => {
+                  setCurrentPassword(event.target.value);
+                  setPasswordError("");
+                }}
+                autoComplete="current-password"
+                maxLength={72}
+              />
+            </Field>
+          ) : null}
+
+          <Field
+            htmlFor="newPassword"
+            label={user.has_password ? "Nueva contraseña" : "Crea una contraseña"}
+            hint="Usa al menos 8 caracteres."
+          >
+            <Input
+              id="newPassword"
+              type="password"
+              value={newPassword}
+              onChange={(event) => {
+                setNewPassword(event.target.value);
+                setPasswordError("");
+              }}
+              autoComplete="new-password"
+              maxLength={72}
+            />
+          </Field>
+
+          <Field htmlFor="confirmPassword" label="Confirma la contraseña">
+            <Input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(event) => {
+                setConfirmPassword(event.target.value);
+                setPasswordError("");
+              }}
+              autoComplete="new-password"
+              maxLength={72}
+            />
+          </Field>
+
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <Button type="submit" loading={changingPassword}>
+              {user.has_password ? "Cambiar contraseña" : "Crear contraseña"}
+            </Button>
+          </div>
+        </form>
+      </section>
     </Card>
   );
 }

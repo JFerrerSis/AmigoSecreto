@@ -8,8 +8,12 @@ import { ArrowRight, Gift, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { InlineAlert } from "@/components/ui/misc";
 import { useToast } from "@/components/ui/toast";
-import { useLocalUser } from "@/hooks/use-local-user";
+import {
+  LocalRequestError,
+  useLocalUser,
+} from "@/hooks/use-local-user";
 
 export function LocalAuthForm({
   mode,
@@ -23,9 +27,19 @@ export function LocalAuthForm({
   const { saveProfile, saving } = useLocalUser();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [setupMode, setSetupMode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState("");
 
   const isSignUp = mode === "sign-up";
+  const needsPassword = isSignUp || setupMode;
+
+  function clearError(field: string) {
+    setErrors((current) => ({ ...current, [field]: "" }));
+    setFormError("");
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,28 +59,81 @@ export function LocalAuthForm({
       nextErrors.email = "Escribe un correo válido.";
     }
 
+    if (needsPassword) {
+      if (password.length < 8) {
+        nextErrors.password = "Usa al menos 8 caracteres.";
+      }
+
+      if (password !== confirmPassword) {
+        nextErrors.confirmPassword = "Las contraseñas no coinciden.";
+      }
+    }
+
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
     }
 
+    const intent = setupMode ? "set-password" : isSignUp ? "create" : "login";
+
     try {
       await saveProfile({
-        intent: isSignUp ? "create" : "login",
+        intent,
         fullName: isSignUp ? cleanName : undefined,
         email: cleanEmail,
+        password: password || undefined,
         website,
       });
       toast({
-        title: isSignUp ? "Cuenta creada" : "Bienvenido de vuelta",
-        description: isSignUp
-          ? "Ya puedes crear salas y participar en sorteos."
-          : "Entraste a tu cuenta. Ya puedes ver tus salas.",
+        title: setupMode
+          ? "Contraseña creada"
+          : isSignUp
+            ? "Cuenta creada"
+            : "Bienvenido de vuelta",
+        description:
+          setupMode
+            ? "Ya puedes entrar con tu correo y contraseña."
+            : isSignUp
+              ? "Ya puedes crear salas y participar en sorteos."
+              : "Entraste a tu cuenta. Ya puedes ver tus salas.",
         variant: "success",
       });
       router.replace(redirectUrl);
       router.refresh();
     } catch (error) {
+      if (error instanceof LocalRequestError) {
+        if (error.code === "PASSWORD_SETUP_REQUIRED") {
+          setSetupMode(true);
+          setPassword("");
+          setConfirmPassword("");
+          setFormError(
+            "Tu cuenta es anterior al acceso con contraseña. Crea una para continuar.",
+          );
+          return;
+        }
+
+        if (error.code === "PASSWORD_ALREADY_SET") {
+          setSetupMode(false);
+          setFormError("Esta cuenta ya tiene contraseña. Escribe la tuya.");
+          return;
+        }
+
+        if (error.code === "INVALID_CREDENTIALS") {
+          setFormError("Correo o contraseña incorrectos.");
+          return;
+        }
+
+        if (error.code === "USER_NOT_FOUND") {
+          setFormError("No encontramos una cuenta con ese correo.");
+          return;
+        }
+
+        if (error.code === "EMAIL_ALREADY_EXISTS") {
+          setFormError("Ya existe una cuenta con ese correo. Inicia sesión.");
+          return;
+        }
+      }
+
       toast({
         title: "No pudimos guardar tus datos",
         description:
@@ -84,12 +151,18 @@ export function LocalAuthForm({
           Organiza sin enredos
         </span>
         <h1 className="mt-4 font-display text-4xl leading-tight text-ink">
-          {isSignUp ? "Crea tu cuenta" : "Entra a tus salas"}
+          {setupMode
+            ? "Crea tu contraseña"
+            : isSignUp
+              ? "Crea tu cuenta"
+              : "Entra a tus salas"}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          {isSignUp
-            ? "Solo necesitamos tu nombre y correo para que tus salas y resultados queden asociados a ti. No compartimos tus datos con terceros."
-            : "Escribe el correo con el que creaste tu cuenta. Si ya existe, entras directo sin volver a escribir tu nombre."}
+          {setupMode
+            ? "Tu cuenta ya existe. Agrega una contraseña para entrar sin depender de enlaces."
+            : isSignUp
+              ? "Tu nombre, correo y una contraseña mantienen tus salas y resultados asociados a ti."
+              : "Entra con tu correo y contraseña."}
         </p>
       </div>
 
@@ -106,6 +179,12 @@ export function LocalAuthForm({
           className="hidden"
         />
 
+        {formError ? (
+          <InlineAlert variant="warning" className="mb-5">
+            <p>{formError}</p>
+          </InlineAlert>
+        ) : null}
+
         <div className="space-y-5">
           {isSignUp ? (
             <Field
@@ -119,7 +198,7 @@ export function LocalAuthForm({
                 value={fullName}
                 onChange={(event) => {
                   setFullName(event.target.value);
-                  setErrors((current) => ({ ...current, fullName: "" }));
+                  clearError("fullName");
                 }}
                 placeholder="Ana Martínez"
                 autoComplete="name"
@@ -135,7 +214,7 @@ export function LocalAuthForm({
             hint={
               isSignUp
                 ? "Lo usaremos para reconocerte cuando vuelvas."
-                : "Si ya creaste tu cuenta, este correo te hace entrar directo."
+                : "Usa el mismo correo con el que creaste tu cuenta."
             }
             error={errors.email}
           >
@@ -145,14 +224,77 @@ export function LocalAuthForm({
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value);
-                setErrors((current) => ({ ...current, email: "" }));
+                clearError("email");
               }}
               placeholder="ana@ejemplo.com"
               autoComplete="email"
-              maxLength={160}
+              maxLength={254}
               autoFocus={!isSignUp}
             />
           </Field>
+
+          {!setupMode && !isSignUp ? (
+            <Field
+              htmlFor="password"
+              label="Contraseña"
+              hint="Déjala vacía solo si tu cuenta es anterior y aún no tiene contraseña."
+              error={errors.password}
+            >
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  clearError("password");
+                }}
+                placeholder="Tu contraseña"
+                autoComplete="current-password"
+                maxLength={72}
+              />
+            </Field>
+          ) : (
+            <>
+              <Field
+                htmlFor="password"
+                label="Contraseña"
+                hint="Usa al menos 8 caracteres."
+                error={errors.password}
+              >
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    clearError("password");
+                  }}
+                  placeholder="Mínimo 8 caracteres"
+                  autoComplete="new-password"
+                  maxLength={72}
+                />
+              </Field>
+
+              <Field
+                htmlFor="confirmPassword"
+                label="Confirma tu contraseña"
+                error={errors.confirmPassword}
+              >
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => {
+                    setConfirmPassword(event.target.value);
+                    clearError("confirmPassword");
+                  }}
+                  placeholder="Repite la contraseña"
+                  autoComplete="new-password"
+                  maxLength={72}
+                />
+              </Field>
+            </>
+          )}
         </div>
 
         <Button
@@ -161,7 +303,11 @@ export function LocalAuthForm({
           className="mt-6 w-full"
           loading={saving}
         >
-          {isSignUp ? "Crear mi cuenta" : "Ingresar"}
+          {setupMode
+            ? "Crear contraseña y entrar"
+            : isSignUp
+              ? "Crear mi cuenta"
+              : "Ingresar"}
           <ArrowRight className="size-4" aria-hidden />
         </Button>
 

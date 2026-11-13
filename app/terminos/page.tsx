@@ -29,15 +29,19 @@ export default function TermsPage() {
 
       <LegalSection title="2. Tu cuenta">
         <p>
-          Para usar Amigo Secreto necesitas un nombre y un correo. No usamos
-          contraseña: entras con tu correo.
+          Para usar Amigo Secreto necesitas un nombre, un correo y una
+          contraseña.
         </p>
         <p>
-          Usa un correo al que solo tú tengas acceso. Si alguien más puede
-          revisarlo, también podría entrar a tu cuenta. Tú eres responsable de
-          la actividad que se haga desde tu cuenta.
+          Usa un correo al que solo tú tengas acceso y una contraseña que no
+          reutilices en otros servicios. Tú eres responsable de la actividad que
+          se haga desde tu cuenta.
         </p>
-        <p>Puedes cerrar sesión cuando quieras.</p>
+        <p>
+          Puedes cambiar tu contraseña desde tu perfil con una sesión activa y
+          cerrar sesión cuando quieras. No ofrecemos recuperación por correo ni
+          OTP.
+        </p>
       </LegalSection>
 
       <LegalSection title="3. Uso adecuado">
@@ -62,8 +66,13 @@ export default function TermsPage() {
         </p>
         <p>
           La app se encarga de hacer el sorteo. Cada participante ve únicamente
-          su propia asignación. No podemos garantizar cómo se comporten los
-          participantes después del sorteo.
+          su propia asignación dentro de la sala; no enviamos la asignación por
+          correo. No podemos garantizar cómo se comporten los participantes
+          después del sorteo.
+        </p>
+        <p>
+          El organizador puede sacar a un participante antes del sorteo,
+          decidir si bloquea su reingreso a la sala y desbloquearlo más adelante.
         </p>
       </LegalSection>
 
@@ -78,6 +87,11 @@ export default function TermsPage() {
         <p>
           Si agregas el nombre o correo de otra persona, asegúrate de tener su
           permiso. No compartas datos de otras personas sin autorización.
+        </p>
+        <p>
+          Las listas de deseos son opcionales y visibles para los miembros de la
+          sala. No incluyas información sensible ni datos de terceros sin su
+          consentimiento.
         </p>
       </LegalSection>
 
@@ -100,9 +114,9 @@ export default function TermsPage() {
 
       <LegalSection title="9. Privacidad y cookies">
         <p>
-          Usamos tu nombre y correo para crear tu cuenta y mostrarte tus salas y
-          resultados. No vendemos tus datos. Puedes leer cómo tratamos tu
-          información en la{" "}
+          Usamos tu nombre, correo y credenciales de acceso para crear tu cuenta
+          y mostrarte tus salas y resultados. No vendemos tus datos. Puedes leer
+          cómo tratamos tu información en la{" "}
           <Link
             href="/privacidad"
             className="font-semibold text-pine underline decoration-pine/30 underline-offset-2 transition hover:text-pine-deep"

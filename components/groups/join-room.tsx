@@ -103,7 +103,7 @@ export function JoinRoom({ code }: { code: string }) {
           Te esperan en un amigo secreto.
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-muted">
-          Crea tu cuenta con nombre y correo para unirte. Después te
+          Crea tu cuenta con correo y contraseña para unirte. Después te
           llevaremos automáticamente de vuelta a esta invitación.
         </p>
 

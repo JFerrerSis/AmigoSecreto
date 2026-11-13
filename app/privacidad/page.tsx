@@ -25,16 +25,25 @@ export default function PrivacyPage() {
       <LegalSection title="2. Qué datos usamos">
         <ul className="list-disc space-y-2 pl-5">
           <li>Tu nombre y correo, para crear y reconocer tu cuenta.</li>
+          <li>Tu contraseña, guardada como hash bcrypt.</li>
           <li>Las salas que creas o a las que te unes.</li>
           <li>Las reglas de la sala: presupuesto, fecha, cupo y exclusiones.</li>
           <li>Tu asignación del sorteo, que solo tú puedes ver.</li>
           <li>
+            Tus listas de deseos, regalos y notas en cada sala, visibles para
+            sus miembros.
+          </li>
+          <li>
             Los nombres y correos de las personas que invitas, cuando tú los
             agregas.
           </li>
+          <li>
+            Si el organizador bloquea a alguien, guardamos la relación entre esa
+            persona y la sala para impedir su reingreso hasta que la desbloquee.
+          </li>
         </ul>
         <p>
-          No usamos contraseñas. Para entrar, usamos tu correo y una cookie
+          Para entrar usamos tu correo y contraseña. También usamos una cookie
           necesaria que mantiene tu sesión iniciada.
         </p>
       </LegalSection>
@@ -43,19 +52,21 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-2 pl-5">
           <li>Crear tu cuenta y reconocerte cuando vuelves.</li>
           <li>Mostrarte tus salas, participantes y resultados.</li>
-          <li>Enviarte avisos relacionados con tus salas.</li>
+          <li>Compartir tu lista de deseos con los miembros de la sala.</li>
+          <li>Permitir que actualices tu nombre de perfil.</li>
           <li>Mantener la app funcionando y prevenir usos indebidos.</li>
         </ul>
         <p>
-          No vendemos tus datos ni los usamos para publicidad de terceros.
+          No vendemos tus datos ni los usamos para publicidad de terceros. Las
+          asignaciones del sorteo se consultan dentro de la sala; no enviamos la
+          asignación por correo.
         </p>
       </LegalSection>
 
       <LegalSection title="4. Con quién compartimos información">
         <p>
-          Usamos proveedores que nos ayudan a alojar la app, guardar la
-          información y enviar correos. Solo acceden a lo necesario para prestar
-          el servicio.
+          Usamos proveedores que nos ayudan a alojar la app y guardar la
+          información. Solo acceden a lo necesario para prestar el servicio.
         </p>
         <p>
           También podemos compartir información si la ley nos lo exige o si es

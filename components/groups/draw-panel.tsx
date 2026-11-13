@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   AlertTriangle,
   CalendarClock,
-  Mail,
   Shuffle,
   Users,
   XCircle,
@@ -18,7 +17,6 @@ import type { Group } from "@/lib/types";
 interface DrawPanelProps {
   group: Group;
   memberCount: number;
-  emailCount: number;
   exclusionsCount: number;
   onDrawn: () => void;
 }
@@ -26,7 +24,6 @@ interface DrawPanelProps {
 export function DrawPanel({
   group,
   memberCount,
-  emailCount,
   exclusionsCount,
   onDrawn,
 }: DrawPanelProps) {
@@ -49,7 +46,6 @@ export function DrawPanel({
       });
       const payload = (await response.json()) as {
         error?: string;
-        emailResult?: { message?: string };
       };
 
       if (!response.ok) {
@@ -60,7 +56,6 @@ export function DrawPanel({
       toast({
         title: "Sorteo realizado",
         description:
-          payload.emailResult?.message ??
           "Cada participante ya puede revelar su amigo secreto en privado.",
         variant: "success",
       });
@@ -109,17 +104,6 @@ export function DrawPanel({
                 Exclusiones
               </span>
               <span className="font-semibold text-ink">{exclusionsCount}</span>
-            </li>
-            <li className="flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2 text-muted">
-                <Mail className="size-4 text-pine" aria-hidden />
-                Correos
-              </span>
-              <span className="text-right text-xs font-semibold text-ink">
-                {group.send_emails
-                  ? `${emailCount} al finalizar`
-                  : "Desactivados"}
-              </span>
             </li>
             <li className="flex items-center justify-between gap-3">
               <span className="inline-flex items-center gap-2 text-muted">
@@ -182,15 +166,9 @@ export function DrawPanel({
       <ConfirmDialog
         open={dialogOpen}
         title="¿Ejecutar el sorteo?"
-        description={
-          group.send_emails
-            ? `Se asignará un amigo secreto a cada uno de los ${memberCount} participantes respetando ${exclusionsCount} ${
-                exclusionsCount === 1 ? "exclusión" : "exclusiones"
-              }. Después enviaremos ${emailCount} correos de notificación y no se podrá deshacer.`
-            : `Se asignará un amigo secreto a cada uno de los ${memberCount} participantes respetando ${exclusionsCount} ${
-                exclusionsCount === 1 ? "exclusión" : "exclusiones"
-              }. No se enviarán correos y la acción no se puede deshacer.`
-        }
+        description={`Se asignará un amigo secreto a cada uno de los ${memberCount} participantes respetando ${exclusionsCount} ${
+          exclusionsCount === 1 ? "exclusión" : "exclusiones"
+        }. Cada persona consultará su asignación dentro de la sala y la acción no se puede deshacer.`}
         confirmLabel="Sí, ejecutar sorteo"
         cancelLabel="Todavía no"
         loading={drawing}

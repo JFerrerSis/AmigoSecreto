@@ -11,37 +11,7 @@ import {
 } from "@/lib/local/session";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { assertSameOrigin } from "@/lib/security/request";
-
-const sessionSchema = z
-  .object({
-    intent: z.enum(["login", "create"]).default("create"),
-    fullName: z
-      .string()
-      .trim()
-      .max(80, "El nombre es demasiado largo.")
-      .regex(
-        /^[^\u0000-\u001F\u007F]*$/,
-        "El nombre contiene caracteres no válidos.",
-      )
-      .optional(),
-    email: z
-      .string()
-      .trim()
-      .email("Escribe un correo válido.")
-      .max(160, "El correo es demasiado largo.")
-      .transform((value) => value.toLowerCase()),
-    website: z.string().max(0).optional(),
-  })
-  .strict()
-  .superRefine((data, context) => {
-    if (data.intent === "create" && (!data.fullName || data.fullName.length < 2)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["fullName"],
-        message: "Escribe tu nombre.",
-      });
-    }
-  });
+import { sessionSchema } from "@/lib/validation";
 
 const profileSchema = z
   .object({
@@ -102,6 +72,7 @@ export async function POST(request: Request) {
       intent: parsed.data.intent,
       fullName: parsed.data.fullName?.trim(),
       email: parsed.data.email.toLowerCase(),
+      password: parsed.data.password,
     });
 
     await setSessionUser(result.user.id);

@@ -12,7 +12,7 @@ import {
   Hash,
   Link2,
   LockKeyhole,
-  Mail,
+  QrCode,
   RefreshCw,
   Share2,
   Sparkles,
@@ -22,9 +22,12 @@ import {
 } from "lucide-react";
 
 import { Avatar } from "@/components/ui/avatar";
+import { BlockedMembersPanel } from "@/components/groups/blocked-members-panel";
 import { DeleteRoomPanel } from "@/components/groups/delete-room-panel";
 import { DrawPanel } from "@/components/groups/draw-panel";
+import { EditRoomPanel } from "@/components/groups/edit-room-panel";
 import { ExclusionsManager } from "@/components/groups/exclusions-manager";
+import { InviteQr } from "@/components/groups/invite-qr";
 import { ParticipantList } from "@/components/groups/participant-list";
 import { RevealCard } from "@/components/groups/reveal-card";
 import { WishlistPanel } from "@/components/groups/wishlist-panel";
@@ -51,6 +54,8 @@ export function GroupRoom({ groupId }: { groupId: string }) {
     exclusions,
     drawResult,
     wishlists,
+    wishlistItems,
+    bans,
     loading,
     error,
     refresh,
@@ -61,6 +66,7 @@ export function GroupRoom({ groupId }: { groupId: string }) {
   const { copied: copiedCode, copy: copyCode } = useCopy();
   const [origin, setOrigin] = useState("");
   const [canShare, setCanShare] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -80,16 +86,6 @@ export function GroupRoom({ groupId }: { groupId: string }) {
     [drawResult, members],
   );
 
-  const emailCount = useMemo(
-    () =>
-      new Set(
-        members
-          .map((member) => member.email?.trim().toLowerCase())
-          .filter((email): email is string => Boolean(email)),
-      ).size,
-    [members],
-  );
-
   if (!isLoaded || (loading && !group)) {
     return <GroupRoomSkeleton />;
   }
@@ -105,7 +101,7 @@ export function GroupRoom({ groupId }: { groupId: string }) {
             Necesitas iniciar sesión.
           </h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted">
-            Crea tu cuenta con nombre y correo para entrar a esta sala y ver
+            Crea tu cuenta con correo y contraseña para entrar a esta sala y ver
             tu resultado privado.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
@@ -215,7 +211,7 @@ export function GroupRoom({ groupId }: { groupId: string }) {
       try {
         await navigator.share({
           title: `Amigo Secreto: ${group?.name ?? "Invitación"}`,
-          text: "Únete a mi amigo secreto y descubre a quién te toca regalar.",
+          text: `Únete a mi amigo secreto con el código ${roomCode} y descubre a quién te toca regalar.`,
           url: inviteUrl,
         });
         return;
@@ -227,13 +223,18 @@ export function GroupRoom({ groupId }: { groupId: string }) {
     await copyInvite();
   }
 
-  async function removeMember(member: GroupMember) {
+  async function removeMember(
+    member: GroupMember,
+    options: { block: boolean },
+  ) {
     try {
       const response = await fetch(
         `/api/groups/${groupId}/members/${member.user_id}`,
         {
           method: "DELETE",
           credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ block: options.block }),
         },
       );
       const payload = (await response.json().catch(() => null)) as {
@@ -248,7 +249,9 @@ export function GroupRoom({ groupId }: { groupId: string }) {
 
       toast({
         title: "Participante eliminado",
-        description: `${member.full_name} ya no está en la sala.`,
+        description: options.block
+          ? `${member.full_name} ya no está en la sala y no podrá volver a unirse con el código.`
+          : `${member.full_name} ya no está en la sala.`,
         variant: "success",
       });
       await refresh(true);
@@ -377,7 +380,7 @@ export function GroupRoom({ groupId }: { groupId: string }) {
             </div>
           </div>
 
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 flex-wrap gap-2">
             {canShare ? (
               <Button
                 type="button"
@@ -403,8 +406,25 @@ export function GroupRoom({ groupId }: { groupId: string }) {
               )}
               {copiedLink ? "Copiado" : "Copiar link"}
             </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowQr((current) => !current)}
+              disabled={!inviteUrl}
+              aria-expanded={showQr}
+            >
+              <QrCode className="size-4" aria-hidden />
+              {showQr ? "Ocultar QR" : "Ver QR"}
+            </Button>
           </div>
         </div>
+
+        {showQr && inviteUrl ? (
+          <div className="mt-4 border-t border-line pt-4">
+            <InviteQr url={inviteUrl} roomCode={roomCode} />
+          </div>
+        ) : null}
       </Card>
 
       {group.status === "completed" ? (
@@ -454,7 +474,6 @@ export function GroupRoom({ groupId }: { groupId: string }) {
             <WaitingCard
               isCreator={isCreator}
               memberCount={members.length}
-              sendEmails={group.send_emails}
             />
           )}
 
@@ -472,10 +491,20 @@ export function GroupRoom({ groupId }: { groupId: string }) {
             }
           />
 
+          {isCreator && bans.length > 0 ? (
+            <BlockedMembersPanel
+              groupId={group.id}
+              bans={bans}
+              onChanged={() => refresh(true)}
+            />
+          ) : null}
+
           <WishlistPanel
             groupId={group.id}
+            currency={group.currency}
             members={members}
             wishlists={wishlists}
+            wishlistItems={wishlistItems}
             currentUserId={userId}
             onChanged={() => refresh(true)}
           />
@@ -511,17 +540,6 @@ export function GroupRoom({ groupId }: { groupId: string }) {
                 label="Cupo"
                 value={`${members.length} de ${group.max_participants}`}
               />
-              <DetailRow
-                icon={Mail}
-                label="Notificaciones"
-                value={
-                  isCreator
-                    ? group.send_emails
-                      ? `${emailCount} ${pluralize(emailCount, "correo", "correos")}`
-                      : "Desactivadas"
-                    : "Solo organizador"
-                }
-              />
               <div className="h-px bg-line" />
               <div className="flex items-center gap-3">
                 <Avatar
@@ -547,13 +565,19 @@ export function GroupRoom({ groupId }: { groupId: string }) {
           </Card>
 
           {isCreator && group.status === "pending" ? (
-            <DrawPanel
-              group={group}
-              memberCount={members.length}
-              emailCount={emailCount}
-              exclusionsCount={exclusions.length}
-              onDrawn={() => void refresh(true)}
-            />
+            <>
+              <EditRoomPanel
+                group={group}
+                memberCount={members.length}
+                onChanged={() => refresh(true)}
+              />
+              <DrawPanel
+                group={group}
+                memberCount={members.length}
+                exclusionsCount={exclusions.length}
+                onDrawn={() => void refresh(true)}
+              />
+            </>
           ) : null}
 
           {group.status === "completed" ? (
@@ -628,11 +652,9 @@ function DetailRow({
 function WaitingCard({
   isCreator,
   memberCount,
-  sendEmails,
 }: {
   isCreator: boolean;
   memberCount: number;
-  sendEmails: boolean;
 }) {
   return (
     <section className="relative overflow-hidden rounded-4xl border border-dashed border-line bg-paper/80 p-8 text-center shadow-soft sm:p-10">
@@ -658,16 +680,12 @@ function WaitingCard({
         </h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted">
           {isCreator
-            ? "Revisa las exclusiones, comparte el link y ejecuta el sorteo desde el panel de organizador. En ese momento se enviarán las notificaciones."
+            ? "Revisa las exclusiones, comparte el link y ejecuta el sorteo desde el panel de organizador. Las asignaciones quedarán disponibles dentro de la sala."
             : `Ya hay ${memberCount} ${pluralize(
                 memberCount,
                 "participante",
                 "participantes",
-              )} en la sala. ${
-                sendEmails
-                  ? "Recibirás un correo cuando el sorteo esté listo."
-                  : "Vuelve a esta sala cuando el organizador haya hecho el sorteo."
-              }`}
+              )} en la sala. Vuelve a esta sala cuando el organizador haya hecho el sorteo.`}
         </p>
       </div>
     </section>

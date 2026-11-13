@@ -2,7 +2,7 @@
 
 Aplicación web para organizar intercambios de amigo secreto: salas privadas, invitaciones por link, exclusiones, sorteo y revelación privada del resultado.
 
-**Stack:** Next.js 15 (App Router) · React 19 · Tailwind CSS 4 · TypeScript · Supabase (Postgres + RLS) · `@supabase/supabase-js` · Resend opcional · Bun · Docker.
+**Stack:** Next.js 15 (App Router) · React 19 · Tailwind CSS 4 · TypeScript · Supabase (Postgres + RLS) · `@supabase/supabase-js` · Bun · Docker.
 
 ---
 
@@ -22,7 +22,7 @@ API Routes de Next.js (servidor)
        └── service role key      ───────►  REST con bypass de RLS
 ```
 
-- La identidad es local: nombre + correo, sin contraseña. Se guarda en `public.users`.
+- La identidad es local: nombre, correo y contraseña. Los datos públicos se guardan en `public.users` y el hash de la contraseña en `public.user_credentials`.
 - La sesión se guarda en una cookie `httpOnly` firmada con HMAC-SHA256: `__Host-amigo_secreto_user` en producción y `amigo_secreto_user` en desarrollo.
 - Todo el CRUD pasa por las API routes del servidor. El navegador no escribe directamente en tablas privadas.
 - La capa de datos (`lib/db/*`) usa `pg` con la connection string de Supabase para operaciones transaccionales: crear sala, unirse, exclusiones y sorteo.
@@ -43,11 +43,15 @@ Si quieres usar `@supabase/supabase-js` en el servidor con bypass de RLS, agrega
 | Tabla | Propósito |
 | --- | --- |
 | `users` | Identidades locales (nombre, correo, avatar). |
+| `user_credentials` | Hash bcrypt de contraseña. Aislada de `users`. |
 | `groups` | Salas: presupuesto, moneda, cupo, fecha, estado, creador e invitación. |
 | `group_members` | Participantes de cada sala. FK compuesta con `groups`/`users`. |
 | `exclusions` | Parejas que no pueden regalarse. FKs compuestas que exigen pertenencia a la sala. |
 | `draw_results` | Asignación privada `giver_id → receiver_id`. Una por participante. |
-| `email_deliveries` | Historial de correos enviados con Resend (opcional). |
+| `group_wishlists` | Notas generales de la lista de deseos por participante. |
+| `group_wishlist_items` | Regalos estructurados: título, enlace, precio, notas y prioridad. |
+| `group_bans` | Personas bloqueadas para volver a entrar a una sala. |
+| `email_deliveries` | Historial legado; la app ya no envía correos de asignación. |
 
 Restricciones destacadas:
 
@@ -83,8 +87,14 @@ El script ejecuta en orden:
 - `supabase/migrations/0001_init.sql`: tablas, índices, constraints, triggers, funciones y RLS.
 - `supabase/migrations/0002_import_app_state.sql`: importa datos legacy de `public.app_state` (idempotente).
 - `supabase/migrations/0003_security_hardening.sql`: bloquea cambios sobre campos inmutables de identidad, pertenencia, resultados y grupos completados.
+- `supabase/migrations/0004_group_wishlists.sql`: listas de deseos personales por sala.
+- `supabase/migrations/0005_currency_codes.sql`: permite códigos de moneda de 3 a 8 letras, incluido `USDT`.
+- `supabase/migrations/0006_group_bans.sql`: bloqueo de reingreso por sala y desactiva las notificaciones por correo.
+- `supabase/migrations/0007_user_credentials.sql`: contraseñas bcrypt en una tabla aislada.
+- `supabase/migrations/0008_wishlist_items.sql`: regalos estructurados para la wishlist avanzada.
+- `supabase/migrations/0009_remove_google_auth.sql`: elimina el vínculo con Google y deja solo correo + contraseña.
 
-También puedes pegar los tres archivos en el **SQL Editor** de Supabase, en ese orden.
+También puedes pegar todas las migraciones en el **SQL Editor** de Supabase, en orden.
 
 > `app_state` no se elimina. Consérvala como respaldo hasta validar la migración.
 
@@ -115,8 +125,6 @@ SESSION_SECRET=
 # Opcional: permite consultar detalles de /api/health con x-health-token.
 HEALTH_CHECK_TOKEN=
 
-RESEND_API_KEY=
-RESEND_FROM_EMAIL="Amigo Secreto <hola@tudominio.com>"
 ```
 
 Genera `SESSION_SECRET` con `openssl rand -base64 48` o con PowerShell:
@@ -166,8 +174,6 @@ En **Project Settings → Environment Variables**, crea las variables para **Pro
 | `COOKIE_SECURE` | `true` |
 | `SESSION_SECRET` | obligatorio, mínimo 32 caracteres aleatorios |
 | `HEALTH_CHECK_TOKEN` | opcional, para ver detalles de `/api/health` con `x-health-token` |
-| `RESEND_API_KEY` | opcional |
-| `RESEND_FROM_EMAIL` | opcional, remitente verificado |
 | `SUPABASE_SERVICE_ROLE_KEY` | opcional, solo si usas `supabase-js` server-side con bypass de RLS |
 
 Importante:
@@ -185,7 +191,7 @@ Vercel no ejecuta migraciones automáticamente. Ejecuta una vez desde tu máquin
 bun run db:migrate
 ```
 
-O pega `0001_init.sql`, `0002_import_app_state.sql` y `0003_security_hardening.sql` en el SQL Editor de Supabase.
+O pega las migraciones `0001` a `0009` en orden en el SQL Editor de Supabase.
 
 ### 4. Verificar
 
@@ -200,7 +206,6 @@ O pega `0001_init.sql`, `0002_import_app_state.sql` y `0003_security_hardening.s
 - El pool de `pg` usa `max: 1` para entornos serverless. El Transaction Pooler de Supabase maneja las conexiones.
 - `next.config.ts` aplica CSP, HSTS, `nosniff`, `DENY` para frames, `Permissions-Policy`, `no-store` en APIs y oculta `X-Powered-By`.
 - `middleware.ts` fuerza HTTPS, bloquea rutas sensibles y valida el origen de las mutaciones de API.
-- Configura `RESEND_FROM_EMAIL` con un dominio verificado en Resend si quieres enviar correos reales.
 - Si usas Supabase Auth en el futuro, las políticas RLS ya están definidas para `authenticated` y `auth.uid()`.
 
 ---
@@ -234,11 +239,11 @@ bun run docker:up
 
 1. El organizador crea una sala con presupuesto, moneda, cupo y fecha.
 2. Comparte el link de invitación (`/join/<invite_code>`).
-3. Los participantes crean su identidad local o inician sesión con su correo.
-4. El organizador agrega exclusiones opcionales.
+3. Los participantes crean su cuenta con correo y contraseña.
+4. El organizador puede editar la sala, agregar exclusiones opcionales y revisar la wishlist avanzada.
 5. El organizador ejecuta el sorteo.
-6. Cada participante ve únicamente su propia asignación.
-7. Si Resend está configurado, se envían correos y se registra el historial en `email_deliveries`.
+6. Cada participante ve únicamente su propia asignación dentro de la sala.
+7. El organizador puede sacar participantes, bloquear su reingreso y desbloquearlos después.
 
 El algoritmo de `lib/draw.ts` garantiza que nadie se regale a sí mismo y que se respeten las exclusiones. Si no existe una asignación válida, no se guarda nada.
 
@@ -265,12 +270,15 @@ bun run docker:down
 
 ```text
 app/
-  api/session/                     Crear/iniciar identidad y cerrar sesión
+  api/session/                     Crear/iniciar sesión, perfil y cerrar sesión
+  api/profile/password/            Crear o cambiar contraseña
   api/groups/                      Crear y listar salas
   api/groups/join/                 Unirse con código
-  api/groups/[id]/                 Detalle de sala y resultado privado
+  api/groups/[id]/                 Detalle, edición y borrado de sala
   api/groups/[id]/draw/            Ejecutar sorteo
   api/groups/[id]/exclusions/      Gestionar exclusiones
+  api/groups/[id]/wishlist/        Notas generales y regalos de wishlist
+  api/groups/[id]/bans/            Desbloquear participantes
   api/health/                      Healthcheck + estado de DB
 components/
   auth/                            Login local
@@ -280,22 +288,27 @@ components/
 hooks/                             Usuario, datos de sala, copiar link
 lib/
   db/pool.ts                       Pool de Postgres (Supabase) y transacciones
-  db/users.ts                      Identidades
-  db/groups.ts                     Salas, miembros, exclusiones y sorteo
-  db/email-deliveries.ts           Historial de correos
+  db/users.ts                      Identidades y contraseñas
+  db/groups.ts                     Salas, miembros, exclusiones, wishlist, bans y sorteo
+  auth/password.ts                 Hashing y verificación bcrypt
   supabase/client.ts               Cliente oficial para navegador (anon)
   supabase/server.ts               Cliente oficial de servidor (service role opcional)
   local/session.ts                 Cookie de sesión firmada
   security/request.ts              IP de cliente y validación de origen
   security/rate-limit.ts           Rate limit en memoria por IP/scope
   draw.ts                          Algoritmo de emparejamiento
-  email.ts                         Resend
   validation.ts                    Esquemas Zod
 middleware.ts                      HTTPS, rutas bloqueadas y origen
 supabase/migrations/
   0001_init.sql                    Esquema, RLS, triggers y funciones
   0002_import_app_state.sql        Importación de datos legacy
   0003_security_hardening.sql      Protección de campos inmutables
+  0004_group_wishlists.sql         Listas de deseos por sala
+  0005_currency_codes.sql          Códigos de moneda, incluido USDT
+  0006_group_bans.sql              Bloqueo de reingreso
+  0007_user_credentials.sql        Contraseñas bcrypt
+  0008_wishlist_items.sql          Wishlist avanzada
+  0009_remove_google_auth.sql      Elimina el vínculo con Google
 scripts/db-migrate.mjs             Runner de migraciones
 ```
 
@@ -303,11 +316,12 @@ scripts/db-migrate.mjs             Runner de migraciones
 
 ## Seguridad y limitaciones
 
-- No hay contraseñas: la identidad local se basa en el correo. Es adecuada para grupos pequeños, no para autenticación sensible.
+- Las contraseñas se guardan como hash bcrypt (12 rondas) en `user_credentials`, nunca en texto plano. Esa tabla no tiene acceso para `anon` ni `authenticated`; solo la usa el servidor.
+- No hay recuperación por correo ni OTP. Puedes cambiar tu contraseña desde el perfil con una sesión activa; si la olvidas y no tienes sesión, no hay recuperación automática.
 - La cookie es `httpOnly`, `sameSite=lax`, `secure` en producción y está firmada con HMAC-SHA256. Si cambias `SESSION_SECRET`, todas las sesiones se invalidan.
 - La connection string de Postgres es un secreto de servidor y nunca debe llevar prefijo `NEXT_PUBLIC_`. No la subas al repositorio.
 - RLS está activo. `anon` no tiene acceso directo a las tablas. `authenticated` solo ve lo que le corresponde si migras a Supabase Auth.
-- El resultado del sorteo se filtra en el servidor: cada usuario recibe solo su asignación. Los correos de los participantes solo los ve el organizador.
+- El resultado del sorteo se filtra en el servidor: cada usuario recibe solo su asignación. Los correos electrónicos de los participantes solo los ve el organizador.
 - Las exclusiones son bidireccionales: si A no puede regalar a B, B tampoco puede regalar a A.
 - Solo el creador puede borrar una sala; el borrado se valida en una transacción con `FOR UPDATE`.
 - Hay rate limiting en memoria por IP y scope. En serverless no es consistente entre instancias: para protección estricta usa WAF/Redis o un CAPTCHA.
@@ -315,4 +329,3 @@ scripts/db-migrate.mjs             Runner de migraciones
 - Los esquemas Zod usan `.strict()`, validan UUIDs, longitudes y caracteres de control; los formularios incluyen un honeypot anti-bots.
 - Las operaciones críticas usan transacciones y locks (`SELECT ... FOR UPDATE`) para evitar condiciones de carrera.
 - TLS cifra el tráfico a Supabase. El pooler usa una cadena autofirmada; si necesitas validación estricta, configura `DATABASE_SSL_CA` y `DATABASE_SSL_REJECT_UNAUTHORIZED=true`.
-- `bun audit` queda con un aviso low de `deepmerge` (dependencia transitiva de Resend) sin versión corregida disponible.
