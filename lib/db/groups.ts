@@ -410,7 +410,7 @@ export async function getGroupDataForUser(
          from public.group_bans b
          join public.users u on u.id = b.user_id
         where b.group_id = $1
-        order by b.blocked_at desc`,
+        order by b.created_at desc`,
       [groupId],
     );
 
